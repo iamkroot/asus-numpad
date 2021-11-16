@@ -5,7 +5,7 @@ mod devices;
 mod dummy_keyboard;
 mod numpad_layout;
 
-use dummy_keyboard::KeyEvents;
+use dummy_keyboard::{DummyKeyboard, KeyEvents};
 use evdev_rs::{
     enums::{EventCode, EV_ABS, EV_KEY},
     Device, DeviceWrapper, GrabMode, ReadFlag,
@@ -14,11 +14,16 @@ use numpad_layout::NumpadLayout;
 
 use crate::devices::{open_input_evdev, read_proc_input};
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Debug, Clone, Copy)]
 enum FingerState {
     Lifted,
     Touching,
     Tapping,
+}
+
+fn get_minmax(dev: &Device, code: EV_ABS) -> (f32, f32) {
+    let abs = dev.abs_info(&EventCode::EV_ABS(code)).expect("MAX");
+    (abs.minimum as f32, abs.maximum as f32)
 }
 
 fn deactivate_numlock() {
@@ -54,25 +59,19 @@ fn toggle_numlock(numlock: &mut bool, touchpad_dev: &mut Device) {
 }
 
 fn main() {
-    let (_, _, i2c) = devices::read_proc_input().expect("Couldn't get proc input devices");
-    let layout = NumpadLayout::um425();
-    let kb = dummy_keyboard::DummyKeyboard::new(&layout);
-    let (_, touchpad_ev_id, _) = read_proc_input().expect("ADSF");
+    let (_, touchpad_ev_id, i2c) = read_proc_input().expect("Couldn't get proc input devices");
     let mut touchpad_dev = open_input_evdev(touchpad_ev_id);
-    fn get_minmax(dev: &Device, code: EV_ABS) -> (f32, f32) {
-        let abs = dev.abs_info(&EventCode::EV_ABS(code)).expect("MAX");
-        (abs.minimum as f32, abs.maximum as f32)
-    }
-    let (_minx, maxx) = get_minmax(&touchpad_dev, EV_ABS::ABS_X);
-    let (_miny, maxy) = get_minmax(&touchpad_dev, EV_ABS::ABS_Y);
+    let (minx, maxx) = get_minmax(&touchpad_dev, EV_ABS::ABS_X);
+    let (miny, maxy) = get_minmax(&touchpad_dev, EV_ABS::ABS_Y);
+    let layout = numpad_layout::M433IA::new(minx, maxx, miny, maxy);
+    let kb = DummyKeyboard::new(&layout);
 
     let mut pos_x = 0.0;
     let mut pos_y = 0.0;
     let mut numlock: bool = false;
     let mut cur_key: Option<EV_KEY> = None;
     let mut finger_state = FingerState::Lifted;
-    // TODO: Support percentage key
-    // TODO: Support calc key (top left)
+    // TODO: Read I2C brightness while starting up to see if numlock is enabled
     loop {
         let ev = touchpad_dev
             .next_event(ReadFlag::NORMAL | ReadFlag::BLOCKING)
@@ -92,7 +91,11 @@ fn main() {
                         // end of tap
                         finger_state = FingerState::Lifted;
                         if let Some(key) = cur_key {
-                            kb.keyup(key);
+                            if layout.needs_multikey(key) {
+                                kb.multi_keyup(&layout.multikeys(key));
+                            } else {
+                                kb.keyup(key);
+                            }
                             cur_key = None;
                         }
                     } else if ev.value == 1 {
@@ -100,7 +103,9 @@ fn main() {
                             // start of tap
                             finger_state = FingerState::Touching;
                         }
-                        if pos_x > 0.95 * (maxx) && pos_y < 0.09 * maxy {
+                        // TODO: Support calc key (top left)
+                        // TODO: Hold to toggle numlock, instead of tap
+                        if layout.in_numpad_bbox(pos_x, pos_y) {
                             finger_state = FingerState::Lifted;
                             toggle_numlock(&mut numlock, &mut touchpad_dev);
                         }
@@ -113,15 +118,14 @@ fn main() {
             }
             if finger_state == FingerState::Touching {
                 finger_state = FingerState::Tapping;
-                let rows = layout.keys.len() as f32;
-                let cols = layout.keys.first().unwrap().len() as f32;
-                let col = (cols * pos_x / maxx) as isize;
-                let row = ((rows * pos_y / maxy) - layout.top_offset) as isize;
-                if row < 0 {
-                    continue;
+                cur_key = layout.get_key(pos_x, pos_y);
+                if let Some(key) = cur_key {
+                    if layout.needs_multikey(key) {
+                        kb.multi_keydown(&layout.multikeys(key));
+                    } else {
+                        kb.keydown(key);
+                    }
                 }
-                cur_key = Some(layout.keys[row as usize][col as usize]);
-                kb.keydown(cur_key.unwrap());
             }
         }
     }
