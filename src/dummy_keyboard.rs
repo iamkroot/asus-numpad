@@ -1,5 +1,3 @@
-use std::marker::PhantomData;
-
 use evdev_rs::{
     enums::{EventCode, EV_KEY, EV_SYN},
     DeviceWrapper, InputEvent, TimeVal, UInputDevice, UninitDevice,
@@ -7,18 +5,11 @@ use evdev_rs::{
 
 use crate::numpad_layout::NumpadLayout;
 
-pub(crate) struct DummyKeyboard<Layout>
-where
-    Layout: NumpadLayout,
-{
+pub(crate) struct DummyKeyboard {
     pub(crate) udev: UInputDevice,
-    _layout: PhantomData<Layout>,
 }
 
-impl<Layout> std::fmt::Debug for DummyKeyboard<Layout>
-where
-    Layout: NumpadLayout,
-{
+impl std::fmt::Debug for DummyKeyboard {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("DummyKeyboard")
             .field("udev", &self.udev.devnode())
@@ -26,11 +17,8 @@ where
     }
 }
 
-impl<Layout> DummyKeyboard<Layout>
-where
-    Layout: NumpadLayout,
-{
-    pub(crate) fn new(layout: &Layout) -> Self {
+impl DummyKeyboard {
+    pub(crate) fn new<Layout: NumpadLayout>(layout: &Layout) -> Self {
         let dev = UninitDevice::new().expect("No libevdev");
         dev.set_name("asus_touchpad");
         let default_keys = [EV_KEY::KEY_LEFTSHIFT, EV_KEY::KEY_NUMLOCK, EV_KEY::KEY_CALC];
@@ -46,7 +34,6 @@ where
         }
         Self {
             udev: UInputDevice::create_from_device(&dev).expect("Unable to create UInput"),
-            _layout: PhantomData::default(),
         }
     }
 }
@@ -73,10 +60,7 @@ pub(crate) trait KeyEvents {
     };
 }
 
-impl<Layout> KeyEvents for DummyKeyboard<Layout>
-where
-    Layout: NumpadLayout,
-{
+impl KeyEvents for DummyKeyboard {
     fn keydown(&self, key: EV_KEY) {
         self.udev
             .write_event(&InputEvent::new(
