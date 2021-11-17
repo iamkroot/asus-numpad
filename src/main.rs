@@ -8,10 +8,9 @@ mod numpad_layout;
 use crate::devices::{open_input_evdev, read_proc_input};
 use crate::dummy_keyboard::{DummyKeyboard, KeyEvents};
 use crate::numpad_layout::NumpadLayout;
-use evdev_rs::TimeVal;
 use evdev_rs::{
-    enums::{EventCode, EV_ABS, EV_KEY},
-    Device, DeviceWrapper, GrabMode, ReadFlag,
+    enums::{EventCode, EV_ABS, EV_KEY, EV_MSC},
+    Device, DeviceWrapper, GrabMode, ReadFlag, TimeVal,
 };
 
 #[derive(PartialEq, Debug, Clone, Copy)]
@@ -102,7 +101,7 @@ fn main() {
     let mut cur_key: Option<EV_KEY> = None;
     let mut finger_state = FingerState::Lifted;
     let mut tap_started_at = TimeVal {
-        tv_sec: i64::MAX,
+        tv_sec: 0,
         tv_usec: 0,
     };
     let mut tapped_outside_numlock_bbox: bool = false;
@@ -118,26 +117,21 @@ fn main() {
             .map(|val| val.1);
         if let Ok(ev) = ev {
             match ev.event_code {
-                evdev_rs::enums::EventCode::EV_ABS(evdev_rs::enums::EV_ABS::ABS_MT_POSITION_X) => {
+                EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_X) => {
                     // what happens when it goes outside bbox of cur_key while dragging?
                     // should we move to new key?
                     // TODO: Check official Windows driver behaviour
                     pos_x = ev.value as f32;
                     continue;
                 }
-                evdev_rs::enums::EventCode::EV_ABS(evdev_rs::enums::EV_ABS::ABS_MT_POSITION_Y) => {
+                EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_Y) => {
                     pos_y = ev.value as f32;
                     continue;
                 }
-                evdev_rs::enums::EventCode::EV_KEY(evdev_rs::enums::EV_KEY::BTN_TOOL_FINGER) => {
+                EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER) => {
                     if ev.value == 0 {
                         // end of tap
                         finger_state = FingerState::Lifted;
-                        if !tapped_outside_numlock_bbox
-                            && ev.time.elapsed_since(tap_started_at) >= HOLD_DURATION
-                        {
-                            toggle_numlock(&mut numlock, &mut touchpad_dev);
-                        }
                         if let Some(key) = cur_key {
                             if layout.needs_multikey(key) {
                                 kb.multi_keyup(&layout.multikeys(key));
@@ -157,19 +151,35 @@ fn main() {
                         if layout.in_numpad_bbox(pos_x, pos_y) {
                             finger_state = FingerState::Tapping;
                         } else {
+                            tapped_outside_numlock_bbox = true
+                        }
+                    }
+                }
+                EventCode::EV_MSC(EV_MSC::MSC_TIMESTAMP) => {
+                    // The toggle should happen automatically after HOLD_DURATION, even if user is
+                    // still touching the numpad bbox.
+                    if finger_state == FingerState::Tapping && !tapped_outside_numlock_bbox {
+                        if layout.in_numpad_bbox(pos_x, pos_y) {
+                            if ev.time.elapsed_since(tap_started_at) >= HOLD_DURATION {
+                                toggle_numlock(&mut numlock, &mut touchpad_dev);
+                                // If user doesn't lift the finger quickly, we don't want to keep
+                                // toggling, so assume finger was moved. 
+                                // Can't do finger_state = Lifted, since that would start another tap
+                                // Can't do finger_state = Touching, since that would cause numpad
+                                // keypresses (we don't check for margins in layout.get_key yet)
+                                tapped_outside_numlock_bbox = true;
+                            }
+                        } else {
                             tapped_outside_numlock_bbox = true;
                         }
                     }
                 }
                 _ => (),
             }
-            if !numlock {
-                continue;
-            }
-            if finger_state == FingerState::Touching {
-                finger_state = FingerState::Tapping;
+            if numlock && finger_state == FingerState::Touching {
                 cur_key = layout.get_key(pos_x, pos_y);
                 if let Some(key) = cur_key {
+                    finger_state = FingerState::Tapping;
                     if layout.needs_multikey(key) {
                         kb.multi_keydown(&layout.multikeys(key));
                     } else {
