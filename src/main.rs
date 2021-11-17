@@ -5,14 +5,14 @@ mod devices;
 mod dummy_keyboard;
 mod numpad_layout;
 
-use dummy_keyboard::{DummyKeyboard, KeyEvents};
+use crate::devices::{open_input_evdev, read_proc_input};
+use crate::dummy_keyboard::{DummyKeyboard, KeyEvents};
+use crate::numpad_layout::NumpadLayout;
+use evdev_rs::TimeVal;
 use evdev_rs::{
     enums::{EventCode, EV_ABS, EV_KEY},
     Device, DeviceWrapper, GrabMode, ReadFlag,
 };
-use numpad_layout::NumpadLayout;
-
-use crate::devices::{open_input_evdev, read_proc_input};
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 enum FingerState {
@@ -58,6 +58,35 @@ fn toggle_numlock(numlock: &mut bool, touchpad_dev: &mut Device) {
     };
 }
 
+trait ElapsedSince {
+    /// Calculate time elapsed since `other`.
+    ///
+    /// Assumes that self >= other
+    fn elapsed_since(&self, other: Self) -> Self;
+}
+
+impl ElapsedSince for TimeVal {
+    fn elapsed_since(&self, other: Self) -> Self {
+        const USEC_PER_SEC: u32 = 1_000_000;
+        let (secs, nsec) = if self.tv_usec >= other.tv_usec {
+            (
+                (self.tv_sec - other.tv_sec) as i64,
+                (self.tv_usec - other.tv_usec) as u32,
+            )
+        } else {
+            (
+                (self.tv_sec - other.tv_sec - 1) as i64,
+                self.tv_usec as u32 + (USEC_PER_SEC as u32) - other.tv_usec as u32,
+            )
+        };
+
+        Self {
+            tv_sec: secs,
+            tv_usec: nsec as i64,
+        }
+    }
+}
+
 fn main() {
     // TODO: Use i2cdev crate- wait for `force_new` release
     let (_, touchpad_ev_id, i2c) = read_proc_input().expect("Couldn't get proc input devices");
@@ -72,11 +101,16 @@ fn main() {
     let mut numlock: bool = false;
     let mut cur_key: Option<EV_KEY> = None;
     let mut finger_state = FingerState::Lifted;
-    let mut tap_started_at = i64::MAX;
+    let mut tap_started_at = TimeVal {
+        tv_sec: i64::MAX,
+        tv_usec: 0,
+    };
     let mut tapped_outside_numlock_bbox: bool = false;
     /// 1sec
-    const HOLD_DURATION: i64 = 1; // TODO: Allow subsecond durations, will have to implement Ops::Sub
-
+    const HOLD_DURATION: TimeVal = TimeVal {
+        tv_sec: 0,
+        tv_usec: 750_000,
+    };
     // TODO: Read I2C brightness while starting up to see if numlock is enabled
     loop {
         let ev = touchpad_dev
@@ -100,7 +134,7 @@ fn main() {
                         // end of tap
                         finger_state = FingerState::Lifted;
                         if !tapped_outside_numlock_bbox
-                            && ev.time.tv_sec - tap_started_at >= HOLD_DURATION
+                            && ev.time.elapsed_since(tap_started_at) >= HOLD_DURATION
                         {
                             toggle_numlock(&mut numlock, &mut touchpad_dev);
                         }
@@ -116,7 +150,7 @@ fn main() {
                         if finger_state == FingerState::Lifted {
                             // start of tap
                             finger_state = FingerState::Touching;
-                            tap_started_at = ev.time.tv_sec;
+                            tap_started_at = ev.time;
                             tapped_outside_numlock_bbox = false;
                         }
                         // TODO: Support calc key (top left)
