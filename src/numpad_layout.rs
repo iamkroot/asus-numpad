@@ -1,4 +1,4 @@
-use std::fmt::Debug;
+use std::{fmt::Debug, hint::unreachable_unchecked};
 
 use evdev_rs::enums::EV_KEY;
 
@@ -9,6 +9,7 @@ struct Margins {
     left: f32,
     right: f32,
 }
+
 // TODO: Configurable percent key (depends on keyboard locale - QWERTY vs AZERTY ..)
 pub(crate) trait NumpadLayout: Debug {
     /// The matrix of keys
@@ -31,7 +32,9 @@ pub(crate) trait NumpadLayout: Debug {
     fn multikeys(&self, key: EV_KEY) -> [EV_KEY; 2] {
         match key {
             EV_KEY::KEY_5 => [EV_KEY::KEY_LEFTSHIFT, EV_KEY::KEY_5],
-            _ => unreachable!(),
+            // Safety: We know this method will only be called after
+            // needs_multikey returns true
+            _ => unsafe { unreachable_unchecked() },
         }
     }
 
