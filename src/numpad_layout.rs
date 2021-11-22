@@ -115,7 +115,7 @@ impl NumpadLayout for UX433FA {
         ],
     ];
 
-    const TOP_OFFSET: f32 = 3.2;
+    const TOP_OFFSET: f32 = 0.1;
 
     fn new(_minx: f32, maxx: f32, _miny: f32, maxy: f32) -> Self {
         Self { maxx, maxy }
@@ -168,7 +168,7 @@ impl NumpadLayout for M433IA {
         ],
     ];
 
-    const TOP_OFFSET: f32 = 0.0;
+    const TOP_OFFSET: f32 = 0.3;
 
     fn new(_minx: f32, maxx: f32, _miny: f32, maxy: f32) -> Self {
         Self { maxx, maxy }
