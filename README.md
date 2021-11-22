@@ -13,6 +13,7 @@ The following features are planned and implemented for the app:
 * [ ] Ignore touches in margins
 * [ ] Support vertical numpad layouts
 * [ ] Cycle through multiple brightness options
+* [ ] Autodetect laptop model
 * [ ] Use [i2cdev](https://crates.io/crates/i2cdev) crate (once [`force_new`](https://github.com/rust-embedded/rust-i2cdev/commit/1c2c672026cd7202ab918879883c8e60aa79c32a) becomes available)
 * [ ] Run without `sudo` (is it even possible?)
 * [ ] Systemd service to enable autostart
@@ -21,7 +22,7 @@ The following features are planned and implemented for the app:
 
 ## Installation
 * Install `libevdev` and `i2c-tools`
-    * Debian / Ubuntu / Linux Mint / Pop!_OS / Zorin OS: `sudo apt install libevdev2 i2c-tools`
+    * Debian / Ubuntu / Linux Mint / Pop!\_OS / Zorin OS: `sudo apt install libevdev2 i2c-tools`
     * Arch Linux / Manjaro: `sudo pacman -S libevdev i2c-tools`
     * Fedora: `sudo dnf install libevdev i2c-tools`
 
