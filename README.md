@@ -29,7 +29,7 @@ The following features are planned and implemented for the app:
 
 ## Run
 * `sudo modprobe i2c-dev`
-    * Loads the I2C interface (allows controlling numpad brightness).
+    * Loads the I2C module (allows controlling numpad brightness).
     * You can have it be loaded automatically at boot. Consult [ArchWiki](https://wiki.archlinux.org/title/Kernel_module#Automatic_module_loading_with_systemd) for details
 * `sudo ~/.cargo/bin/asus-numpad`
 
