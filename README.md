@@ -6,16 +6,17 @@ Linux tool to allow using the numpad that is overlayed on various Asus Laptop to
 
 The following features are planned and implemented for the app:
 * [x] Compile time specification of numpad layouts
-* [x] Support UX433FA and M433IA (Send PRs for others!)
+* [x] Support UX433FA and M433IA
 * [x] Hold the numpad button to toggle it
 * [x] Fast response to touches
 * [ ] Handle Calc Key
 * [ ] Ignore touches in margins
+* [ ] Support vertical numpad layouts
 * [ ] Cycle through multiple brightness options
 * [ ] Use [i2cdev](https://crates.io/crates/i2cdev) crate (once [`force_new`](https://github.com/rust-embedded/rust-i2cdev/commit/1c2c672026cd7202ab918879883c8e60aa79c32a) becomes available)
 * [ ] Run without `sudo` (is it even possible?)
 * [ ] Systemd service to enable autostart
-* [ ] Integration with system's Numpad state (to support external keyboards)
+* [ ] Integration with system's NumLock state (toggle with external keyboards)
 * [ ] Logging for debugging purposes
 
 ## Installation
