@@ -11,3 +11,4 @@ categories = ["hardware-support", "os::linux-apis"]
 
 [dependencies]
 evdev-rs = "0.5.0"
+i2cdev = "0.5.1"

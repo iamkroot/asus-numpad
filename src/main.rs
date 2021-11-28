@@ -3,14 +3,24 @@
 mod devices;
 mod dummy_keyboard;
 mod numpad_layout;
+mod touchpad_i2c;
 
 use crate::devices::{open_input_evdev, read_proc_input};
 use crate::dummy_keyboard::{DummyKeyboard, KeyEvents};
 use crate::numpad_layout::NumpadLayout;
+use crate::touchpad_i2c::TouchpadI2C;
 use evdev_rs::{
     enums::{EventCode, EV_ABS, EV_KEY, EV_MSC},
     Device, DeviceWrapper, GrabMode, ReadFlag, TimeVal,
 };
+
+#[derive(Debug, Clone, Copy)]
+pub enum Brightness {
+    Zero = 0,
+    Low = 31,
+    Half = 24,
+    Full = 1,
+}
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 enum FingerState {
@@ -22,26 +32,6 @@ enum FingerState {
 fn get_minmax(dev: &Device, code: EV_ABS) -> (f32, f32) {
     let abs = dev.abs_info(&EventCode::EV_ABS(code)).expect("MAX");
     (abs.minimum as f32, abs.maximum as f32)
-}
-
-fn deactivate_numlock() {
-    std::process::Command::new("i2ctransfer")
-        .args(
-            "-f -y 0 w13@0x15 0x05 0x00 0x3d 0x03 0x06 0x00 0x07 0x00 0x0d 0x14 0x03 0x00 0xad"
-                .split(' '),
-        )
-        .status()
-        .expect("Numlock");
-}
-
-fn activate_numlock() {
-    std::process::Command::new("i2ctransfer")
-        .args(
-            "-f -y 0 w13@0x15 0x05 0x00 0x3d 0x03 0x06 0x00 0x07 0x00 0x0d 0x14 0x03 0x1f 0xad"
-                .split(' '),
-        )
-        .status()
-        .expect("Numlock");
 }
 
 trait ElapsedSince {
@@ -82,6 +72,8 @@ struct TouchpadState {
     cur_key: Option<EV_KEY>,
     tap_started_at: TimeVal,
     tapped_outside_numlock_bbox: bool,
+    // TODO: allow changing brightness
+    brightness: Brightness,
 }
 
 impl TouchpadState {
@@ -104,12 +96,14 @@ impl Default for TouchpadState {
                 tv_usec: 0,
             },
             tapped_outside_numlock_bbox: false,
+            brightness: Brightness::Half,
         }
     }
 }
 
 struct Numpad {
     evdev: Device,
+    touchpad_i2c: TouchpadI2C,
     dummy_kb: DummyKeyboard,
     layout: NumpadLayout,
     state: TouchpadState,
@@ -127,9 +121,15 @@ impl std::fmt::Debug for Numpad {
 }
 
 impl Numpad {
-    fn new(evdev: Device, dummy_kb: DummyKeyboard, layout: NumpadLayout) -> Self {
+    fn new(
+        evdev: Device,
+        touchpad_i2c: TouchpadI2C,
+        dummy_kb: DummyKeyboard,
+        layout: NumpadLayout,
+    ) -> Self {
         Self {
             evdev,
+            touchpad_i2c,
             dummy_kb,
             layout,
             state: TouchpadState::default(),
@@ -138,10 +138,10 @@ impl Numpad {
 
     fn toggle_numlock(&mut self) {
         if self.state.toggle_numlock() {
-            activate_numlock();
+            self.touchpad_i2c.set_brightness(self.state.brightness);
             self.evdev.grab(GrabMode::Grab).expect("GRAB");
         } else {
-            deactivate_numlock();
+            self.touchpad_i2c.set_brightness(Brightness::Zero);
             self.evdev.grab(GrabMode::Ungrab).expect("UNGRAB");
         }
     }
@@ -238,14 +238,13 @@ impl Numpad {
 }
 
 fn main() {
-    // TODO: Use i2cdev crate
-    let (_, touchpad_ev_id, _) = read_proc_input().expect("Couldn't get proc input devices");
+    let (_, touchpad_ev_id, i2c_id) = read_proc_input().expect("Couldn't get proc input devices");
     let touchpad_dev = open_input_evdev(touchpad_ev_id);
     let (minx, maxx) = get_minmax(&touchpad_dev, EV_ABS::ABS_X);
     let (miny, maxy) = get_minmax(&touchpad_dev, EV_ABS::ABS_Y);
     let layout = NumpadLayout::m433ia(minx, maxx, miny, maxy);
     let kb = DummyKeyboard::new(&layout);
-
-    let mut numpad = Numpad::new(touchpad_dev, kb, layout);
+    let touchpad_i2c = TouchpadI2C::new(i2c_id);
+    let mut numpad = Numpad::new(touchpad_dev, touchpad_i2c, kb, layout);
     numpad.process();
 }
