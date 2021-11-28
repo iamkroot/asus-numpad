@@ -11,7 +11,7 @@ The following features are planned and implemented for the app:
 * [x] Use [i2cdev](https://crates.io/crates/i2cdev) crate for setting brightness
 * [x] Handle Calc Key
 * [x] Cycle through multiple brightness options
-* [ ] Ignore touches in margins
+* [x] Ignore touches in margins
 * [ ] Support vertical numpad layouts
 * [ ] Autodetect laptop model
 * [ ] Run without `sudo` (is it even possible?)

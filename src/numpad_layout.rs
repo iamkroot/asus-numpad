@@ -10,6 +10,47 @@ struct Margins {
     right: f32,
 }
 
+#[derive(Debug)]
+struct BBox {
+    minx: f32,
+    maxx: f32,
+    miny: f32,
+    maxy: f32,
+}
+
+impl BBox {
+    fn xrange(&self) -> f32 {
+        self.maxx - self.minx
+    }
+
+    fn yrange(&self) -> f32 {
+        self.maxy - self.miny
+    }
+
+    fn xscaled(&self, posx: f32) -> f32 {
+        (posx - self.minx) / self.xrange()
+    }
+
+    fn yscaled(&self, posy: f32) -> f32 {
+        (posy - self.minx) / self.yrange()
+    }
+
+    fn apply_margins(&self, margins: &Margins) -> Self {
+        let xrange = self.xrange();
+        let yrange = self.yrange();
+        BBox {
+            minx: self.minx + margins.left * xrange,
+            maxx: self.maxx - margins.right * xrange,
+            miny: self.miny + margins.top * yrange,
+            maxy: self.maxy - margins.bottom * yrange,
+        }
+    }
+
+    fn contains(&self, posx: f32, posy: f32) -> bool {
+        (self.minx <= posx && posx <= self.maxx) && (self.miny <= posy && posy <= self.maxy)
+    }
+}
+
 type Grid = Vec<Vec<EV_KEY>>;
 
 #[derive(Debug)]
@@ -18,10 +59,8 @@ pub(crate) struct NumpadLayout {
     rows: usize,
     /// The matrix of keys
     keys: Grid,
-    top_offset: f32,
-    maxx: f32,
-    maxy: f32,
-    // margins: Margins,
+    bbox: BBox,
+    numpad_bbox: BBox,
 }
 
 impl NumpadLayout {
@@ -52,39 +91,33 @@ impl NumpadLayout {
     }
 
     pub fn maxx(&self) -> f32 {
-        self.maxx
+        self.bbox.maxx
     }
 
     pub fn maxy(&self) -> f32 {
-        self.maxy
-    }
-
-    pub fn top_offset(&self) -> f32 {
-        self.top_offset
+        self.bbox.maxy
     }
 
     /// Get the key at (posx, posy), if it exists
     pub fn get_key(&self, posx: f32, posy: f32) -> Option<EV_KEY> {
-        if self.in_margins(posx, posy) {
+        let x = self.numpad_bbox.xscaled(posx);
+        let y = self.numpad_bbox.yscaled(posy);
+        if !(0.0..=1.0).contains(&x) || !(0.0..=1.0).contains(&y) {
+            // outside numpad bbox
             return None;
         }
-        // TODO: Use margins to crop the maxx and maxy
-        let row = ((self.rows() as f32) * posy / self.maxy() - self.top_offset()) as isize;
-        if row < 0 {
-            return None;
-        }
-        let col = ((self.cols() as f32) * posx / self.maxx()) as isize;
+        let row = ((self.rows() as f32) * y) as usize;
+        let col = ((self.cols() as f32) * x) as usize;
         // Safety: We have constructed the row and col by scaling self.rows and self.cols
-        let key = unsafe {self.keys().get_unchecked(row as usize).get_unchecked(col as usize)};
+        let key = unsafe { self.keys().get_unchecked(row).get_unchecked(col) };
         Some(*key)
     }
 
     pub fn in_margins(&self, posx: f32, posy: f32) -> bool {
-        // TODO: Actually check if we are in margins
-        false
+        !self.numpad_bbox.contains(posx, posy)
     }
 
-    pub fn in_numpad_bbox(&self, posx: f32, posy: f32) -> bool {
+    pub fn in_numlock_bbox(&self, posx: f32, posy: f32) -> bool {
         posx > 0.95 * self.maxx() && posy < 0.09 * self.maxy()
     }
 
@@ -92,7 +125,20 @@ impl NumpadLayout {
         posx < 0.06 * self.maxx() && posy < 0.09 * self.maxy()
     }
 
-    pub fn ux433fa(_minx: f32, maxx: f32, _miny: f32, maxy: f32) -> Self {
+    pub fn ux433fa(minx: f32, maxx: f32, miny: f32, maxy: f32) -> Self {
+        let margins = Margins {
+            top: 0.1,
+            bottom: 0.025,
+            left: 0.05,
+            right: 0.05,
+        };
+        let bbox = BBox {
+            minx,
+            maxx,
+            miny,
+            maxy,
+        };
+
         Self {
             cols: 5,
             rows: 4,
@@ -126,14 +172,25 @@ impl NumpadLayout {
                     EV_KEY::KEY_KPENTER,
                 ],
             ],
-            top_offset: 0.1,
-            maxx,
-            maxy,
-            // margins: todo!(),
+            numpad_bbox: bbox.apply_margins(&margins),
+            bbox,
         }
     }
 
-    pub fn m433ia(_minx: f32, maxx: f32, _miny: f32, maxy: f32) -> Self {
+    pub fn m433ia(minx: f32, maxx: f32, miny: f32, maxy: f32) -> Self {
+        let margins = Margins {
+            top: 0.1,
+            bottom: 0.025,
+            left: 0.05,
+            right: 0.05,
+        };
+        let bbox = BBox {
+            minx,
+            maxx,
+            miny,
+            maxy,
+        };
+
         Self {
             cols: 5,
             rows: 4,
@@ -167,10 +224,8 @@ impl NumpadLayout {
                     EV_KEY::KEY_EQUAL,
                 ],
             ],
-            top_offset: 0.2,
-            maxx,
-            maxy,
-            // margins: todo!(),
+            numpad_bbox: bbox.apply_margins(&margins),
+            bbox,
         }
     }
 }

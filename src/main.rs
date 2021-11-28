@@ -213,7 +213,10 @@ impl Numpad {
                                 self.state.tap_started_at = ev.time;
                                 self.state.tapped_outside_numlock_bbox = false;
                             }
-                            if self.layout.in_numpad_bbox(self.state.posx, self.state.posy) {
+                            if self
+                                .layout
+                                .in_numlock_bbox(self.state.posx, self.state.posy)
+                            {
                                 self.state.finger_state = FingerState::Tapping;
                             } else {
                                 if self.layout.in_calc_bbox(self.state.posx, self.state.posy) {
@@ -229,7 +232,10 @@ impl Numpad {
                         if self.state.finger_state == FingerState::Tapping
                             && !self.state.tapped_outside_numlock_bbox
                         {
-                            if self.layout.in_numpad_bbox(self.state.posx, self.state.posy) {
+                            if self
+                                .layout
+                                .in_numlock_bbox(self.state.posx, self.state.posy)
+                            {
                                 if ev.time.elapsed_since(self.state.tap_started_at) >= HOLD_DURATION
                                 {
                                     self.toggle_numlock();
