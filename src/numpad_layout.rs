@@ -10,26 +10,31 @@ struct Margins {
     right: f32,
 }
 
-// TODO: Configurable percent key (depends on keyboard locale - QWERTY vs AZERTY ..)
-pub(crate) trait NumpadLayout: Debug {
+type Grid = Vec<Vec<EV_KEY>>;
+
+#[derive(Debug)]
+pub(crate) struct NumpadLayout {
+    cols: usize,
+    rows: usize,
     /// The matrix of keys
-    ///
-    /// Don't need to make it generic over `Rows` and `Cols` for now
-    const KEYS: [[EV_KEY; 5]; 4];
-    const TOP_OFFSET: f32;
-    // const MARGINS: Margins;
+    keys: Grid,
+    top_offset: f32,
+    maxx: f32,
+    maxy: f32,
+    // margins: Margins,
+}
 
-    fn new(minx: f32, maxx: f32, miny: f32, maxy: f32) -> Self;
-
-    fn keys(&self) -> [[EV_KEY; 5]; 4] {
-        Self::KEYS
+impl NumpadLayout {
+    /// Get a reference to the numpad layout's keys.
+    pub fn keys(&self) -> &Grid {
+        self.keys.as_ref()
     }
 
-    fn needs_multikey(&self, key: EV_KEY) -> bool {
+    pub fn needs_multikey(&self, key: EV_KEY) -> bool {
         key == EV_KEY::KEY_5
     }
 
-    fn multikeys(&self, key: EV_KEY) -> [EV_KEY; 2] {
+    pub fn multikeys(&self, key: EV_KEY) -> [EV_KEY; 2] {
         match key {
             EV_KEY::KEY_5 => [EV_KEY::KEY_LEFTSHIFT, EV_KEY::KEY_5],
             // Safety: We know this method will only be called after
@@ -38,147 +43,130 @@ pub(crate) trait NumpadLayout: Debug {
         }
     }
 
-    fn rows(&self) -> usize {
-        4
+    pub fn rows(&self) -> usize {
+        self.rows
     }
 
-    fn cols(&self) -> usize {
-        5
+    pub fn cols(&self) -> usize {
+        self.cols
     }
 
-    fn maxx(&self) -> f32;
+    pub fn maxx(&self) -> f32 {
+        self.maxx
+    }
 
-    fn maxy(&self) -> f32;
+    pub fn maxy(&self) -> f32 {
+        self.maxy
+    }
 
-    fn top_offset(&self) -> f32 {
-        Self::TOP_OFFSET
+    pub fn top_offset(&self) -> f32 {
+        self.top_offset
     }
 
     /// Get the key at (posx, posy), if it exists
-    fn get_key(&self, posx: f32, posy: f32) -> Option<EV_KEY> {
+    pub fn get_key(&self, posx: f32, posy: f32) -> Option<EV_KEY> {
         if self.in_margins(posx, posy) {
             return None;
         }
+        // TODO: Use margins to crop the maxx and maxy
         let row = ((self.rows() as f32) * posy / self.maxy() - self.top_offset()) as isize;
         if row < 0 {
             return None;
         }
         let col = ((self.cols() as f32) * posx / self.maxx()) as isize;
-        Some(self.keys()[row as usize][col as usize])
+        // Safety: We have constructed the row and col by scaling self.rows and self.cols
+        let key = unsafe {self.keys().get_unchecked(row as usize).get_unchecked(col as usize)};
+        Some(*key)
     }
 
-    fn in_margins(&self, posx: f32, posy: f32) -> bool {
+    pub fn in_margins(&self, posx: f32, posy: f32) -> bool {
         // TODO: Actually check if we are in margins
         false
     }
 
-    fn in_numpad_bbox(&self, posx: f32, posy: f32) -> bool {
+    pub fn in_numpad_bbox(&self, posx: f32, posy: f32) -> bool {
         posx > 0.95 * self.maxx() && posy < 0.09 * self.maxy()
     }
-}
 
-#[derive(Debug)]
-pub(crate) struct UX433FA {
-    maxx: f32,
-    maxy: f32,
-}
-
-impl NumpadLayout for UX433FA {
-    const KEYS: [[EV_KEY; 5]; 4] = [
-        [
-            EV_KEY::KEY_KP7,
-            EV_KEY::KEY_KP8,
-            EV_KEY::KEY_KP9,
-            EV_KEY::KEY_KPSLASH,
-            EV_KEY::KEY_BACKSPACE,
-        ],
-        [
-            EV_KEY::KEY_KP4,
-            EV_KEY::KEY_KP5,
-            EV_KEY::KEY_KP6,
-            EV_KEY::KEY_KPASTERISK,
-            EV_KEY::KEY_BACKSPACE,
-        ],
-        [
-            EV_KEY::KEY_KP1,
-            EV_KEY::KEY_KP2,
-            EV_KEY::KEY_KP3,
-            EV_KEY::KEY_KPMINUS,
-            EV_KEY::KEY_KPENTER,
-        ],
-        [
-            EV_KEY::KEY_KP0,
-            EV_KEY::KEY_KP0,
-            EV_KEY::KEY_KPDOT,
-            EV_KEY::KEY_KPPLUS,
-            EV_KEY::KEY_KPENTER,
-        ],
-    ];
-
-    const TOP_OFFSET: f32 = 0.1;
-
-    fn new(_minx: f32, maxx: f32, _miny: f32, maxy: f32) -> Self {
-        Self { maxx, maxy }
+    pub fn ux433fa(_minx: f32, maxx: f32, _miny: f32, maxy: f32) -> Self {
+        Self {
+            cols: 5,
+            rows: 4,
+            keys: vec![
+                vec![
+                    EV_KEY::KEY_KP7,
+                    EV_KEY::KEY_KP8,
+                    EV_KEY::KEY_KP9,
+                    EV_KEY::KEY_KPSLASH,
+                    EV_KEY::KEY_BACKSPACE,
+                ],
+                vec![
+                    EV_KEY::KEY_KP4,
+                    EV_KEY::KEY_KP5,
+                    EV_KEY::KEY_KP6,
+                    EV_KEY::KEY_KPASTERISK,
+                    EV_KEY::KEY_BACKSPACE,
+                ],
+                vec![
+                    EV_KEY::KEY_KP1,
+                    EV_KEY::KEY_KP2,
+                    EV_KEY::KEY_KP3,
+                    EV_KEY::KEY_KPMINUS,
+                    EV_KEY::KEY_KPENTER,
+                ],
+                vec![
+                    EV_KEY::KEY_KP0,
+                    EV_KEY::KEY_KP0,
+                    EV_KEY::KEY_KPDOT,
+                    EV_KEY::KEY_KPPLUS,
+                    EV_KEY::KEY_KPENTER,
+                ],
+            ],
+            top_offset: 0.1,
+            maxx,
+            maxy,
+            // margins: todo!(),
+        }
     }
 
-    fn maxx(&self) -> f32 {
-        self.maxx
-    }
-
-    fn maxy(&self) -> f32 {
-        self.maxy
-    }
-}
-
-#[derive(Debug)]
-pub(crate) struct M433IA {
-    maxx: f32,
-    maxy: f32,
-}
-
-impl NumpadLayout for M433IA {
-    const KEYS: [[EV_KEY; 5]; 4] = [
-        [
-            EV_KEY::KEY_KP7,
-            EV_KEY::KEY_KP8,
-            EV_KEY::KEY_KP9,
-            EV_KEY::KEY_KPSLASH,
-            EV_KEY::KEY_BACKSPACE,
-        ],
-        [
-            EV_KEY::KEY_KP4,
-            EV_KEY::KEY_KP5,
-            EV_KEY::KEY_KP6,
-            EV_KEY::KEY_KPASTERISK,
-            EV_KEY::KEY_BACKSPACE,
-        ],
-        [
-            EV_KEY::KEY_KP1,
-            EV_KEY::KEY_KP2,
-            EV_KEY::KEY_KP3,
-            EV_KEY::KEY_KPMINUS,
-            EV_KEY::KEY_5,
-        ],
-        [
-            EV_KEY::KEY_KP0,
-            EV_KEY::KEY_KPDOT,
-            EV_KEY::KEY_KPENTER,
-            EV_KEY::KEY_KPPLUS,
-            EV_KEY::KEY_EQUAL,
-        ],
-    ];
-
-    const TOP_OFFSET: f32 = 0.3;
-
-    fn new(_minx: f32, maxx: f32, _miny: f32, maxy: f32) -> Self {
-        Self { maxx, maxy }
-    }
-
-    fn maxx(&self) -> f32 {
-        self.maxx
-    }
-
-    fn maxy(&self) -> f32 {
-        self.maxy
+    pub fn m433ia(_minx: f32, maxx: f32, _miny: f32, maxy: f32) -> Self {
+        Self {
+            cols: 5,
+            rows: 4,
+            keys: vec![
+                vec![
+                    EV_KEY::KEY_KP7,
+                    EV_KEY::KEY_KP8,
+                    EV_KEY::KEY_KP9,
+                    EV_KEY::KEY_KPSLASH,
+                    EV_KEY::KEY_BACKSPACE,
+                ],
+                vec![
+                    EV_KEY::KEY_KP4,
+                    EV_KEY::KEY_KP5,
+                    EV_KEY::KEY_KP6,
+                    EV_KEY::KEY_KPASTERISK,
+                    EV_KEY::KEY_BACKSPACE,
+                ],
+                vec![
+                    EV_KEY::KEY_KP1,
+                    EV_KEY::KEY_KP2,
+                    EV_KEY::KEY_KP3,
+                    EV_KEY::KEY_KPMINUS,
+                    EV_KEY::KEY_5,
+                ],
+                vec![
+                    EV_KEY::KEY_KP0,
+                    EV_KEY::KEY_KPDOT,
+                    EV_KEY::KEY_KPENTER,
+                    EV_KEY::KEY_KPPLUS,
+                    EV_KEY::KEY_EQUAL,
+                ],
+            ],
+            top_offset: 0.2,
+            maxx,
+            maxy,
+            // margins: todo!(),
+        }
     }
 }

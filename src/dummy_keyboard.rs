@@ -18,7 +18,7 @@ impl std::fmt::Debug for DummyKeyboard {
 }
 
 impl DummyKeyboard {
-    pub(crate) fn new<Layout: NumpadLayout>(layout: &Layout) -> Self {
+    pub(crate) fn new(layout: &NumpadLayout) -> Self {
         let dev = UninitDevice::new().expect("No libevdev");
         dev.set_name("asus_touchpad");
         let default_keys = [EV_KEY::KEY_LEFTSHIFT, EV_KEY::KEY_NUMLOCK, EV_KEY::KEY_CALC];

@@ -1,5 +1,4 @@
 #![feature(iter_advance_by)]
-#![feature(with_options)]
 
 mod devices;
 mod dummy_keyboard;
@@ -92,7 +91,7 @@ fn main() {
     let mut touchpad_dev = open_input_evdev(touchpad_ev_id);
     let (minx, maxx) = get_minmax(&touchpad_dev, EV_ABS::ABS_X);
     let (miny, maxy) = get_minmax(&touchpad_dev, EV_ABS::ABS_Y);
-    let layout = numpad_layout::M433IA::new(minx, maxx, miny, maxy);
+    let layout = NumpadLayout::m433ia(minx, maxx, miny, maxy);
     let kb = DummyKeyboard::new(&layout);
 
     let mut pos_x = 0.0;
