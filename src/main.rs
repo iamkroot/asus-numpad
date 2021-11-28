@@ -15,6 +15,7 @@ use evdev_rs::{
     enums::{EventCode, EV_ABS, EV_KEY, EV_MSC},
     Device, DeviceWrapper, GrabMode, ReadFlag, TimeVal,
 };
+use numpad_layout::BBox;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Brightness {
@@ -274,7 +275,8 @@ fn main() {
     let touchpad_dev = open_input_evdev(touchpad_ev_id);
     let (minx, maxx) = get_minmax(&touchpad_dev, EV_ABS::ABS_X);
     let (miny, maxy) = get_minmax(&touchpad_dev, EV_ABS::ABS_Y);
-    let layout = NumpadLayout::m433ia(minx, maxx, miny, maxy);
+    let bbox = BBox::new(minx, maxx, miny, maxy);
+    let layout = NumpadLayout::m433ia(bbox);
     let kb = DummyKeyboard::new(&layout);
     let touchpad_i2c = TouchpadI2C::new(i2c_id);
     let mut numpad = Numpad::new(touchpad_dev, touchpad_i2c, kb, layout);

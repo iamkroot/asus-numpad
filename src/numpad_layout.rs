@@ -11,7 +11,7 @@ struct Margins {
 }
 
 #[derive(Debug)]
-struct BBox {
+pub struct BBox {
     minx: f32,
     maxx: f32,
     miny: f32,
@@ -19,6 +19,15 @@ struct BBox {
 }
 
 impl BBox {
+    pub fn new(minx: f32, maxx: f32, miny: f32, maxy: f32) -> Self {
+        Self {
+            minx,
+            maxx,
+            miny,
+            maxy,
+        }
+    }
+
     fn xrange(&self) -> f32 {
         self.maxx - self.minx
     }
@@ -125,104 +134,46 @@ impl NumpadLayout {
         posx < 0.06 * self.maxx() && posy < 0.09 * self.maxy()
     }
 
-    pub fn ux433fa(minx: f32, maxx: f32, miny: f32, maxy: f32) -> Self {
+    pub fn ux433fa(bbox: BBox) -> Self {
         let margins = Margins {
             top: 0.1,
             bottom: 0.025,
             left: 0.05,
             right: 0.05,
         };
-        let bbox = BBox {
-            minx,
-            maxx,
-            miny,
-            maxy,
-        };
 
+        use EV_KEY::*;
         Self {
             cols: 5,
             rows: 4,
             keys: vec![
-                vec![
-                    EV_KEY::KEY_KP7,
-                    EV_KEY::KEY_KP8,
-                    EV_KEY::KEY_KP9,
-                    EV_KEY::KEY_KPSLASH,
-                    EV_KEY::KEY_BACKSPACE,
-                ],
-                vec![
-                    EV_KEY::KEY_KP4,
-                    EV_KEY::KEY_KP5,
-                    EV_KEY::KEY_KP6,
-                    EV_KEY::KEY_KPASTERISK,
-                    EV_KEY::KEY_BACKSPACE,
-                ],
-                vec![
-                    EV_KEY::KEY_KP1,
-                    EV_KEY::KEY_KP2,
-                    EV_KEY::KEY_KP3,
-                    EV_KEY::KEY_KPMINUS,
-                    EV_KEY::KEY_KPENTER,
-                ],
-                vec![
-                    EV_KEY::KEY_KP0,
-                    EV_KEY::KEY_KP0,
-                    EV_KEY::KEY_KPDOT,
-                    EV_KEY::KEY_KPPLUS,
-                    EV_KEY::KEY_KPENTER,
-                ],
+                vec![KEY_KP7, KEY_KP8, KEY_KP9, KEY_KPSLASH, KEY_BACKSPACE],
+                vec![KEY_KP4, KEY_KP5, KEY_KP6, KEY_KPASTERISK, KEY_BACKSPACE],
+                vec![KEY_KP1, KEY_KP2, KEY_KP3, KEY_KPMINUS, KEY_KPENTER],
+                vec![KEY_KP0, KEY_KP0, KEY_KPDOT, KEY_KPPLUS, KEY_KPENTER],
             ],
             numpad_bbox: bbox.apply_margins(&margins),
             bbox,
         }
     }
 
-    pub fn m433ia(minx: f32, maxx: f32, miny: f32, maxy: f32) -> Self {
+    pub fn m433ia(bbox: BBox) -> Self {
         let margins = Margins {
             top: 0.1,
             bottom: 0.025,
             left: 0.05,
             right: 0.05,
         };
-        let bbox = BBox {
-            minx,
-            maxx,
-            miny,
-            maxy,
-        };
 
+        use EV_KEY::*;
         Self {
             cols: 5,
             rows: 4,
             keys: vec![
-                vec![
-                    EV_KEY::KEY_KP7,
-                    EV_KEY::KEY_KP8,
-                    EV_KEY::KEY_KP9,
-                    EV_KEY::KEY_KPSLASH,
-                    EV_KEY::KEY_BACKSPACE,
-                ],
-                vec![
-                    EV_KEY::KEY_KP4,
-                    EV_KEY::KEY_KP5,
-                    EV_KEY::KEY_KP6,
-                    EV_KEY::KEY_KPASTERISK,
-                    EV_KEY::KEY_BACKSPACE,
-                ],
-                vec![
-                    EV_KEY::KEY_KP1,
-                    EV_KEY::KEY_KP2,
-                    EV_KEY::KEY_KP3,
-                    EV_KEY::KEY_KPMINUS,
-                    EV_KEY::KEY_5,
-                ],
-                vec![
-                    EV_KEY::KEY_KP0,
-                    EV_KEY::KEY_KPDOT,
-                    EV_KEY::KEY_KPENTER,
-                    EV_KEY::KEY_KPPLUS,
-                    EV_KEY::KEY_EQUAL,
-                ],
+                vec![KEY_KP7, KEY_KP8, KEY_KP9, KEY_KPSLASH, KEY_BACKSPACE],
+                vec![KEY_KP4, KEY_KP5, KEY_KP6, KEY_KPASTERISK, KEY_BACKSPACE],
+                vec![KEY_KP1, KEY_KP2, KEY_KP3, KEY_KPMINUS, KEY_5],
+                vec![KEY_KP0, KEY_KPDOT, KEY_KPENTER, KEY_KPPLUS, KEY_EQUAL],
             ],
             numpad_bbox: bbox.apply_margins(&margins),
             bbox,
