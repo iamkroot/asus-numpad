@@ -12,7 +12,8 @@ The following features are planned and implemented for the app:
 * [x] Handle Calc Key
 * [x] Cycle through multiple brightness options
 * [x] Ignore touches in margins
-* [ ] Support vertical numpad layouts
+* [x] Support more numpad layouts (UX581 and GX701)
+* [ ] Set model via program argument
 * [ ] Autodetect laptop model
 * [ ] Run without `sudo` (is it even possible?)
 * [ ] Systemd service to enable autostart

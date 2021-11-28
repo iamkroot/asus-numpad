@@ -195,4 +195,77 @@ impl NumpadLayout {
             bbox,
         }
     }
+
+    pub fn ux581(bbox: BBox) -> Self {
+        use EV_KEY::*;
+
+        Self {
+            cols: 4,
+            rows: 5,
+            keys: vec![
+                vec![KEY_KPEQUAL, KEY_5, KEY_BACKSPACE, KEY_BACKSPACE],
+                vec![KEY_KP7, KEY_KP8, KEY_KP9, KEY_KPSLASH],
+                vec![KEY_KP4, KEY_KP5, KEY_KP6, KEY_KPASTERISK],
+                vec![KEY_KP1, KEY_KP2, KEY_KP3, KEY_KPMINUS],
+                vec![KEY_KP0, KEY_KPDOT, KEY_KPENTER, KEY_KPPLUS],
+            ],
+            numpad_bbox: bbox.apply_margins(&Margins {
+                top: 0.1,
+                bottom: 0.025,
+                left: 0.025,
+                right: 0.025,
+            }),
+            numlock_bbox: bbox.apply_margins(&Margins {
+                top: 0.0,
+                bottom: 0.91,
+                left: 0.95,
+                right: 0.0,
+            }),
+            calc_bbox: bbox.apply_margins(&Margins {
+                top: 0.0,
+                bottom: 0.91,
+                left: 0.0,
+                right: 0.95,
+            }),
+            bbox,
+        }
+    }
+
+    pub fn gx701(bbox: BBox) -> Self {
+        use EV_KEY::*;
+
+        Self {
+            cols: 4,
+            rows: 5,
+            keys: vec![
+                vec![KEY_KPEQUAL, KEY_5, KEY_BACKSPACE, KEY_BACKSPACE],
+                vec![KEY_KP7, KEY_KP8, KEY_KP9, KEY_KPSLASH],
+                vec![KEY_KP4, KEY_KP5, KEY_KP6, KEY_KPASTERISK],
+                vec![KEY_KP1, KEY_KP2, KEY_KP3, KEY_KPMINUS],
+                vec![KEY_KP0, KEY_KPDOT, KEY_KPENTER, KEY_KPPLUS],
+            ],
+            numpad_bbox: bbox.apply_margins(&Margins {
+                top: 0.025,
+                bottom: 0.025,
+                left: 0.025,
+                right: 0.025,
+            }),
+            // these bboxes aren't present on this model.
+            // set to values outside the actual touchpad bbox.
+            // this way, they will never be activated.
+            numlock_bbox: BBox {
+                minx: bbox.maxx + 1.0,
+                maxx: bbox.maxx + 2.0,
+                miny: bbox.maxy + 1.0,
+                maxy: bbox.maxy + 2.0,
+            },
+            calc_bbox: BBox {
+                minx: bbox.maxx + 1.0,
+                maxx: bbox.maxx + 2.0,
+                miny: bbox.maxy + 1.0,
+                maxy: bbox.maxy + 2.0,
+            },
+            bbox,
+        }
+    }
 }
