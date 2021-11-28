@@ -70,6 +70,8 @@ pub(crate) struct NumpadLayout {
     keys: Grid,
     bbox: BBox,
     numpad_bbox: BBox,
+    numlock_bbox: BBox,
+    calc_bbox: BBox,
 }
 
 impl NumpadLayout {
@@ -92,19 +94,13 @@ impl NumpadLayout {
     }
 
     pub fn rows(&self) -> usize {
+        debug_assert_eq!(self.rows, self.keys.len());
         self.rows
     }
 
     pub fn cols(&self) -> usize {
+        debug_assert_eq!(self.cols, self.keys[0].len());
         self.cols
-    }
-
-    pub fn maxx(&self) -> f32 {
-        self.bbox.maxx
-    }
-
-    pub fn maxy(&self) -> f32 {
-        self.bbox.maxy
     }
 
     /// Get the key at (posx, posy), if it exists
@@ -127,21 +123,14 @@ impl NumpadLayout {
     }
 
     pub fn in_numlock_bbox(&self, posx: f32, posy: f32) -> bool {
-        posx > 0.95 * self.maxx() && posy < 0.09 * self.maxy()
+        self.numlock_bbox.contains(posx, posy)
     }
 
     pub fn in_calc_bbox(&self, posx: f32, posy: f32) -> bool {
-        posx < 0.06 * self.maxx() && posy < 0.09 * self.maxy()
+        self.calc_bbox.contains(posx, posy)
     }
 
     pub fn ux433fa(bbox: BBox) -> Self {
-        let margins = Margins {
-            top: 0.1,
-            bottom: 0.025,
-            left: 0.05,
-            right: 0.05,
-        };
-
         use EV_KEY::*;
         Self {
             cols: 5,
@@ -152,19 +141,29 @@ impl NumpadLayout {
                 vec![KEY_KP1, KEY_KP2, KEY_KP3, KEY_KPMINUS, KEY_KPENTER],
                 vec![KEY_KP0, KEY_KP0, KEY_KPDOT, KEY_KPPLUS, KEY_KPENTER],
             ],
-            numpad_bbox: bbox.apply_margins(&margins),
+            numpad_bbox: bbox.apply_margins(&Margins {
+                top: 0.1,
+                bottom: 0.025,
+                left: 0.05,
+                right: 0.05,
+            }),
+            numlock_bbox: bbox.apply_margins(&Margins {
+                top: 0.0,
+                bottom: 0.91,
+                left: 0.95,
+                right: 0.0,
+            }),
+            calc_bbox: bbox.apply_margins(&Margins {
+                top: 0.0,
+                bottom: 0.91,
+                left: 0.0,
+                right: 0.95,
+            }),
             bbox,
         }
     }
 
     pub fn m433ia(bbox: BBox) -> Self {
-        let margins = Margins {
-            top: 0.1,
-            bottom: 0.025,
-            left: 0.05,
-            right: 0.05,
-        };
-
         use EV_KEY::*;
         Self {
             cols: 5,
@@ -175,7 +174,24 @@ impl NumpadLayout {
                 vec![KEY_KP1, KEY_KP2, KEY_KP3, KEY_KPMINUS, KEY_5],
                 vec![KEY_KP0, KEY_KPDOT, KEY_KPENTER, KEY_KPPLUS, KEY_EQUAL],
             ],
-            numpad_bbox: bbox.apply_margins(&margins),
+            numpad_bbox: bbox.apply_margins(&Margins {
+                top: 0.1,
+                bottom: 0.025,
+                left: 0.05,
+                right: 0.05,
+            }),
+            numlock_bbox: bbox.apply_margins(&Margins {
+                top: 0.0,
+                bottom: 0.91,
+                left: 0.95,
+                right: 0.0,
+            }),
+            calc_bbox: bbox.apply_margins(&Margins {
+                top: 0.0,
+                bottom: 0.91,
+                left: 0.0,
+                right: 0.95,
+            }),
             bbox,
         }
     }
