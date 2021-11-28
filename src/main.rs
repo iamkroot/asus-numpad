@@ -4,11 +4,13 @@ mod devices;
 mod dummy_keyboard;
 mod numpad_layout;
 mod touchpad_i2c;
+mod util;
 
 use crate::devices::{open_input_evdev, read_proc_input};
 use crate::dummy_keyboard::{DummyKeyboard, KeyEvents};
 use crate::numpad_layout::NumpadLayout;
 use crate::touchpad_i2c::TouchpadI2C;
+use crate::util::ElapsedSince;
 use evdev_rs::{
     enums::{EventCode, EV_ABS, EV_KEY, EV_MSC},
     Device, DeviceWrapper, GrabMode, ReadFlag, TimeVal,
@@ -32,35 +34,6 @@ enum FingerState {
 fn get_minmax(dev: &Device, code: EV_ABS) -> (f32, f32) {
     let abs = dev.abs_info(&EventCode::EV_ABS(code)).expect("MAX");
     (abs.minimum as f32, abs.maximum as f32)
-}
-
-trait ElapsedSince {
-    /// Calculate time elapsed since `other`.
-    ///
-    /// Assumes that self >= other
-    fn elapsed_since(&self, other: Self) -> Self;
-}
-
-impl ElapsedSince for TimeVal {
-    fn elapsed_since(&self, other: Self) -> Self {
-        const USEC_PER_SEC: u32 = 1_000_000;
-        let (secs, nsec) = if self.tv_usec >= other.tv_usec {
-            (
-                (self.tv_sec - other.tv_sec) as i64,
-                (self.tv_usec - other.tv_usec) as u32,
-            )
-        } else {
-            (
-                (self.tv_sec - other.tv_sec - 1) as i64,
-                self.tv_usec as u32 + (USEC_PER_SEC as u32) - other.tv_usec as u32,
-            )
-        };
-
-        Self {
-            tv_sec: secs,
-            tv_usec: nsec as i64,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -147,10 +120,10 @@ impl Numpad {
     }
 
     fn process(&mut self) {
-        // TODO: Make this user configurable
+        // 1 second
         const HOLD_DURATION: TimeVal = TimeVal {
-            tv_sec: 0,
-            tv_usec: 750_000,
+            tv_sec: 1,
+            tv_usec: 0,
         };
         loop {
             let ev = self
