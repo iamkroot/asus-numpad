@@ -24,11 +24,52 @@ pub enum Brightness {
     Full = 1,
 }
 
+impl Default for Brightness {
+    fn default() -> Self {
+        Brightness::Half
+    }
+}
+
+impl std::fmt::Display for Brightness {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use Brightness::*;
+        let level = match self {
+            Zero => "Zero",
+            Low => "Low",
+            Half => "Half",
+            Full => "Full",
+        };
+        f.write_str(level)
+    }
+}
+
+impl Brightness {
+    fn next(&self) -> Self {
+        use Brightness::*;
+        match self {
+            Zero => Default::default(), // Jump to default
+            Low => Half,
+            Half => Full,
+            Full => Low,
+        }
+    }
+    fn cycle(&mut self) -> Self {
+        *self = self.next();
+        *self
+    }
+}
+
 #[derive(PartialEq, Debug, Clone, Copy)]
 enum FingerState {
     Lifted,
     Touching,
     Tapping,
+}
+
+impl Default for FingerState {
+    fn default() -> Self {
+        FingerState::Lifted
+    }
 }
 
 fn get_minmax(dev: &Device, code: EV_ABS) -> (f32, f32) {
@@ -61,7 +102,7 @@ impl Default for TouchpadState {
         Self {
             posx: 0.0,
             posy: 0.0,
-            finger_state: FingerState::Lifted,
+            finger_state: Default::default(),
             numlock: false,
             cur_key: None,
             tap_started_at: TimeVal {
@@ -69,7 +110,7 @@ impl Default for TouchpadState {
                 tv_usec: 0,
             },
             tapped_outside_numlock_bbox: false,
-            brightness: Brightness::Half,
+            brightness: Default::default(),
         }
     }
 }
@@ -147,6 +188,16 @@ impl Numpad {
                         if ev.value == 0 {
                             // end of tap
                             self.state.finger_state = FingerState::Lifted;
+                            if self.layout.in_calc_bbox(self.state.posx, self.state.posy) {
+                                if self.state.numlock {
+                                    self.touchpad_i2c
+                                        .set_brightness(self.state.brightness.cycle());
+                                } else {
+                                    // Start calculator
+                                    self.dummy_kb.keypress(EV_KEY::KEY_CALC);
+                                    // TODO: Should only start calc when dragged
+                                }
+                            }
                             if let Some(key) = self.state.cur_key {
                                 if self.layout.needs_multikey(key) {
                                     self.dummy_kb.multi_keyup(&self.layout.multikeys(key));
@@ -162,10 +213,12 @@ impl Numpad {
                                 self.state.tap_started_at = ev.time;
                                 self.state.tapped_outside_numlock_bbox = false;
                             }
-                            // TODO: Support calc key (top left)
                             if self.layout.in_numpad_bbox(self.state.posx, self.state.posy) {
                                 self.state.finger_state = FingerState::Tapping;
                             } else {
+                                if self.layout.in_calc_bbox(self.state.posx, self.state.posy) {
+                                    self.state.finger_state = FingerState::Tapping;
+                                }
                                 self.state.tapped_outside_numlock_bbox = true
                             }
                         }

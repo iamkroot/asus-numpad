@@ -88,6 +88,10 @@ impl NumpadLayout {
         posx > 0.95 * self.maxx() && posy < 0.09 * self.maxy()
     }
 
+    pub fn in_calc_bbox(&self, posx: f32, posy: f32) -> bool {
+        posx < 0.06 * self.maxx() && posy < 0.09 * self.maxy()
+    }
+
     pub fn ux433fa(_minx: f32, maxx: f32, _miny: f32, maxy: f32) -> Self {
         Self {
             cols: 5,
