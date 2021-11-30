@@ -18,6 +18,7 @@ use evdev_rs::{
     enums::{EventCode, EV_ABS, EV_KEY, EV_MSC},
     Device, DeviceWrapper, GrabMode, InputEvent, ReadFlag, TimeVal,
 };
+use log::{debug, trace};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Brightness {
@@ -172,6 +173,10 @@ impl Numpad {
             tv_usec: 0,
         };
 
+        // no need to trace timestamp events - too noisy
+        if !matches!(ev.event_code, EventCode::EV_MSC(EV_MSC::MSC_TIMESTAMP)) {
+            trace!("TP{:?} {}", ev.event_code, ev.value);
+        }
         match ev.event_code {
             EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_X) => {
                 // what happens when it goes outside bbox of cur_key while dragging?
@@ -186,8 +191,10 @@ impl Numpad {
             }
             EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER) if ev.value == 0 => {
                 // end of tap
+                debug!("End tap");
                 self.state.finger_state = FingerState::Lifted;
                 if self.layout.in_calc_bbox(self.state.posx, self.state.posy) {
+                    debug!("In calc - end");
                     if self.state.numlock {
                         self.touchpad_i2c
                             .set_brightness(self.state.brightness.cycle());
@@ -198,6 +205,8 @@ impl Numpad {
                     }
                 }
                 if let Some(key) = self.state.cur_key {
+                    debug!("Keyup {:?}", key);
+
                     if self.layout.needs_multikey(key) {
                         self.dummy_kb.multi_keyup(&self.layout.multikeys(key));
                     } else {
@@ -209,6 +218,7 @@ impl Numpad {
             EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER) if ev.value == 1 => {
                 if self.state.finger_state == FingerState::Lifted {
                     // start of tap
+                    debug!("Start tap");
                     self.state.finger_state = FingerState::Touching;
                     self.state.tap_started_at = ev.time;
                     self.state.tapped_outside_numlock_bbox = false;
@@ -217,10 +227,12 @@ impl Numpad {
                     .layout
                     .in_numlock_bbox(self.state.posx, self.state.posy)
                 {
+                    debug!("In numlock - start");
                     self.state.finger_state = FingerState::Tapping;
                 } else {
                     if self.layout.in_calc_bbox(self.state.posx, self.state.posy) {
                         self.state.finger_state = FingerState::Tapping;
+                        debug!("In calc - start");
                     }
                     self.state.tapped_outside_numlock_bbox = true
                 }
@@ -237,6 +249,7 @@ impl Numpad {
                         .in_numlock_bbox(self.state.posx, self.state.posy)
                     {
                         if ev.time.elapsed_since(self.state.tap_started_at) >= HOLD_DURATION {
+                            debug!("Hold finish - toggle numlock");
                             self.toggle_numlock();
                             // If user doesn't lift the finger quickly, we don't want to keep
                             // toggling, so assume finger was moved.
@@ -256,6 +269,7 @@ impl Numpad {
             self.state.cur_key = self.layout.get_key(self.state.posx, self.state.posy);
             if let Some(key) = self.state.cur_key {
                 self.state.finger_state = FingerState::Tapping;
+                debug!("Keydown {:?}", key);
                 if self.layout.needs_multikey(key) {
                     self.dummy_kb.multi_keydown(&self.layout.multikeys(key));
                 } else {
@@ -292,6 +306,7 @@ impl Numpad {
                     if fds[1].revents & libc::POLLIN != 0 {
                         while let Ok((_, ev)) = self.keyboard_evdev.next_event(ReadFlag::NORMAL) {
                             // TODO: Check for numlock
+                            trace!("KB {}, {}", ev.event_code, ev.value);
                         }
                     }
                 }
@@ -303,6 +318,7 @@ impl Numpad {
 }
 
 fn main() {
+    env_logger::init();
     let (keyboard_ev_id, touchpad_ev_id, i2c_id) =
         read_proc_input().expect("Couldn't get proc input devices");
     let touchpad_dev = open_input_evdev(touchpad_ev_id);
