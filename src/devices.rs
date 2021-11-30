@@ -1,6 +1,5 @@
-use std::fs::File;
-
 use evdev_rs::Device;
+use std::{fs::OpenOptions, os::unix::prelude::OpenOptionsExt};
 
 fn parse_id(line: &str, search_str: &str) -> Result<u32, String> {
     let pos = line.find(search_str).ok_or("Can't find token")?;
@@ -95,7 +94,11 @@ pub(crate) fn read_proc_input() -> Result<(u32, u32, u32), String> {
 }
 
 pub(crate) fn open_input_evdev(evdev_id: u32) -> Device {
-    let file = File::open(format!("/dev/input/event{}", evdev_id))
+    let file = OpenOptions::new()
+        .read(true)
+        .write(true)
+        .custom_flags(libc::O_NONBLOCK)
+        .open(format!("/dev/input/event{}", evdev_id))
         .expect("Couldn't open device event handle");
     Device::new_from_file(file).expect("Unable to open evdev device")
 }
