@@ -13,12 +13,13 @@ The following features are planned and implemented for the app:
 * [x] Cycle through multiple brightness options
 * [x] Ignore touches in margins
 * [x] Support more numpad layouts (UX581 and GX701)
+* [x] Logging for debugging purposes
+* [ ] Don't panic on errors - exit gracefully
 * [ ] Set model via program argument
 * [ ] Autodetect laptop model
-* [ ] Run without `sudo` (is it even possible?)
+* [ ] Run without `sudo`
 * [ ] Systemd service to enable autostart
 * [ ] Integration with system's NumLock state (toggle with external keyboards)
-* [ ] Logging for debugging purposes
 
 ## Installation
 * Install `libevdev`
