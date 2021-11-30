@@ -11,9 +11,10 @@ use std::os::unix::io::AsRawFd;
 
 use crate::devices::{open_input_evdev, read_proc_input};
 use crate::dummy_keyboard::{DummyKeyboard, KeyEvents};
-use crate::numpad_layout::{BBox, NumpadLayout};
+use crate::numpad_layout::{BBox, NumpadLayout, LAYOUT_NAMES};
 use crate::touchpad_i2c::TouchpadI2C;
 use crate::util::ElapsedSince;
+use clap::{App, Arg};
 use evdev_rs::{
     enums::{EventCode, EV_ABS, EV_KEY, EV_MSC},
     Device, DeviceWrapper, GrabMode, InputEvent, ReadFlag, TimeVal,
@@ -319,6 +320,18 @@ impl Numpad {
 
 fn main() {
     env_logger::init();
+    let matches = App::new("asus-numpad")
+        .arg(
+            Arg::with_name("layout")
+                .long("layout")
+                .short("l")
+                .takes_value(true)
+                .required(true)
+                .possible_values(&LAYOUT_NAMES),
+        )
+        .get_matches();
+    let layout_name = matches.value_of("layout").expect("Expected layout");
+
     let (keyboard_ev_id, touchpad_ev_id, i2c_id) =
         read_proc_input().expect("Couldn't get proc input devices");
     let touchpad_dev = open_input_evdev(touchpad_ev_id);
@@ -326,7 +339,13 @@ fn main() {
     let (minx, maxx) = get_minmax(&touchpad_dev, EV_ABS::ABS_X);
     let (miny, maxy) = get_minmax(&touchpad_dev, EV_ABS::ABS_Y);
     let bbox = BBox::new(minx, maxx, miny, maxy);
-    let layout = NumpadLayout::m433ia(bbox);
+    let layout = match layout_name {
+        "ux433fa" => NumpadLayout::ux433fa(bbox),
+        "m433ia" => NumpadLayout::m433ia(bbox),
+        "ux581" => NumpadLayout::ux581(bbox),
+        "gx701" => NumpadLayout::gx701(bbox),
+        _ => unreachable!(),
+    };
     let kb = DummyKeyboard::new(&layout);
     let touchpad_i2c = TouchpadI2C::new(i2c_id);
     let mut numpad = Numpad::new(touchpad_dev, keyboard_dev, touchpad_i2c, kb, layout);

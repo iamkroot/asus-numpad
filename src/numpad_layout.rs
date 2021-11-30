@@ -74,6 +74,8 @@ pub(crate) struct NumpadLayout {
     calc_bbox: BBox,
 }
 
+pub const LAYOUT_NAMES: [&str; 4] = ["ux433fa", "m433ia", "ux581", "gx701"];
+
 impl NumpadLayout {
     /// Get a reference to the numpad layout's keys.
     pub fn keys(&self) -> &Grid {

@@ -14,8 +14,8 @@ The following features are planned and implemented for the app:
 * [x] Ignore touches in margins
 * [x] Support more numpad layouts (UX581 and GX701)
 * [x] Logging for debugging purposes
+* [x] Set model via program argument
 * [ ] Don't panic on errors - exit gracefully
-* [ ] Set model via program argument
 * [ ] Autodetect laptop model
 * [ ] Run without `sudo`
 * [ ] Systemd service to enable autostart
