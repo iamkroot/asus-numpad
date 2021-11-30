@@ -55,6 +55,17 @@ impl BBox {
         }
     }
 
+    /// Return a new BBox that is non-intersecting with self.
+    /// Used for creating dummy boxes.
+    fn disjoint_dummy(&self) -> Self {
+        Self {
+            minx: self.maxx + 1.0,
+            maxx: self.maxx + 2.0,
+            miny: self.maxy + 1.0,
+            maxy: self.maxy + 2.0,
+        }
+    }
+
     fn contains(&self, posx: f32, posy: f32) -> bool {
         (self.minx <= posx && posx <= self.maxx) && (self.miny <= posy && posy <= self.maxy)
     }
@@ -68,7 +79,6 @@ pub(crate) struct NumpadLayout {
     rows: usize,
     /// The matrix of keys
     keys: Grid,
-    bbox: BBox,
     numpad_bbox: BBox,
     numlock_bbox: BBox,
     calc_bbox: BBox,
@@ -120,7 +130,7 @@ impl NumpadLayout {
         Some(*key)
     }
 
-    pub fn in_margins(&self, posx: f32, posy: f32) -> bool {
+    pub fn _in_margins(&self, posx: f32, posy: f32) -> bool {
         !self.numpad_bbox.contains(posx, posy)
     }
 
@@ -161,7 +171,6 @@ impl NumpadLayout {
                 left: 0.0,
                 right: 0.95,
             }),
-            bbox,
         }
     }
 
@@ -194,7 +203,6 @@ impl NumpadLayout {
                 left: 0.0,
                 right: 0.95,
             }),
-            bbox,
         }
     }
 
@@ -229,7 +237,6 @@ impl NumpadLayout {
                 left: 0.0,
                 right: 0.95,
             }),
-            bbox,
         }
     }
 
@@ -255,19 +262,8 @@ impl NumpadLayout {
             // these bboxes aren't present on this model.
             // set to values outside the actual touchpad bbox.
             // this way, they will never be activated.
-            numlock_bbox: BBox {
-                minx: bbox.maxx + 1.0,
-                maxx: bbox.maxx + 2.0,
-                miny: bbox.maxy + 1.0,
-                maxy: bbox.maxy + 2.0,
-            },
-            calc_bbox: BBox {
-                minx: bbox.maxx + 1.0,
-                maxx: bbox.maxx + 2.0,
-                miny: bbox.maxy + 1.0,
-                maxy: bbox.maxy + 2.0,
-            },
-            bbox,
+            numlock_bbox: bbox.disjoint_dummy(),
+            calc_bbox: bbox.disjoint_dummy(),
         }
     }
 }
