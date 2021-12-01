@@ -9,60 +9,17 @@ mod util;
 use std::hint::unreachable_unchecked;
 use std::os::unix::io::AsRawFd;
 
-use crate::devices::{open_input_evdev, read_proc_input};
+use crate::devices::{get_touchpad_bbox, open_input_evdev, read_proc_input};
 use crate::dummy_keyboard::{DummyKeyboard, KeyEvents};
-use crate::numpad_layout::{BBox, NumpadLayout, LAYOUT_NAMES};
-use crate::touchpad_i2c::TouchpadI2C;
+use crate::numpad_layout::{NumpadLayout, LAYOUT_NAMES};
+use crate::touchpad_i2c::{Brightness, TouchpadI2C};
 use crate::util::ElapsedSince;
 use clap::{App, Arg};
 use evdev_rs::{
     enums::{EventCode, EV_ABS, EV_KEY, EV_MSC},
-    Device, DeviceWrapper, GrabMode, InputEvent, ReadFlag, TimeVal,
+    Device, GrabMode, InputEvent, ReadFlag, TimeVal,
 };
 use log::{debug, trace};
-
-#[derive(Debug, Clone, Copy)]
-pub enum Brightness {
-    Zero = 0,
-    Low = 31,
-    Half = 24,
-    Full = 1,
-}
-
-impl Default for Brightness {
-    fn default() -> Self {
-        Brightness::Half
-    }
-}
-
-impl std::fmt::Display for Brightness {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use Brightness::*;
-        let level = match self {
-            Zero => "Zero",
-            Low => "Low",
-            Half => "Half",
-            Full => "Full",
-        };
-        f.write_str(level)
-    }
-}
-
-impl Brightness {
-    fn next(&self) -> Self {
-        use Brightness::*;
-        match self {
-            Zero => Default::default(), // Jump to default
-            Low => Half,
-            Half => Full,
-            Full => Low,
-        }
-    }
-    fn cycle(&mut self) -> Self {
-        *self = self.next();
-        *self
-    }
-}
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 enum FingerState {
@@ -75,11 +32,6 @@ impl Default for FingerState {
     fn default() -> Self {
         FingerState::Lifted
     }
-}
-
-fn get_minmax(dev: &Device, code: EV_ABS) -> (f32, f32) {
-    let abs = dev.abs_info(&EventCode::EV_ABS(code)).expect("MAX");
-    (abs.minimum as f32, abs.maximum as f32)
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -132,7 +84,9 @@ impl std::fmt::Debug for Numpad {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("Numpad")
             .field("evdev", &self.evdev.file())
-            .field("keyboard", &self.dummy_kb)
+            .field("keyboard_evdev", &self.keyboard_evdev.file())
+            .field("dummy_keyboard", &self.dummy_kb)
+            .field("touchpad_i2c", &self.touchpad_i2c)
             .field("state", &self.state)
             .field("layout", &self.layout)
             .finish()
@@ -336,9 +290,7 @@ fn main() {
         read_proc_input().expect("Couldn't get proc input devices");
     let touchpad_dev = open_input_evdev(touchpad_ev_id);
     let keyboard_dev = open_input_evdev(keyboard_ev_id);
-    let (minx, maxx) = get_minmax(&touchpad_dev, EV_ABS::ABS_X);
-    let (miny, maxy) = get_minmax(&touchpad_dev, EV_ABS::ABS_Y);
-    let bbox = BBox::new(minx, maxx, miny, maxy);
+    let bbox = get_touchpad_bbox(&touchpad_dev);
     let layout = match layout_name {
         "ux433fa" => NumpadLayout::ux433fa(bbox),
         "m433ia" => NumpadLayout::m433ia(bbox),

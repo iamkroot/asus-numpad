@@ -1,5 +1,10 @@
-use evdev_rs::Device;
+use evdev_rs::{
+    enums::{EventCode, EV_ABS},
+    Device, DeviceWrapper,
+};
 use std::{fs::OpenOptions, os::unix::prelude::OpenOptionsExt};
+
+use crate::numpad_layout::BBox;
 
 fn parse_id(line: &str, search_str: &str) -> Result<u32, String> {
     let pos = line.find(search_str).ok_or("Can't find token")?;
@@ -101,4 +106,19 @@ pub(crate) fn open_input_evdev(evdev_id: u32) -> Device {
         .open(format!("/dev/input/event{}", evdev_id))
         .expect("Couldn't open device event handle");
     Device::new_from_file(file).expect("Unable to open evdev device")
+}
+
+pub(crate) fn get_touchpad_bbox(touchpad_evdev: &Device) -> BBox {
+    let absx = touchpad_evdev
+        .abs_info(&EventCode::EV_ABS(EV_ABS::ABS_X))
+        .expect("MAX");
+    let absy = touchpad_evdev
+        .abs_info(&EventCode::EV_ABS(EV_ABS::ABS_Y))
+        .expect("MAX");
+    BBox::new(
+        absx.minimum as f32,
+        absx.maximum as f32,
+        absy.minimum as f32,
+        absy.maximum as f32,
+    )
 }
