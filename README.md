@@ -22,7 +22,7 @@ Linux tool to allow using the numpad that is overlayed on various Asus Laptop to
 * Copy to some directory in PATH. (Further instructions assume it is in `~/.cargo/bin/`)
 
 ## Run
-* `sudo modprobe i2c-dev devname:uinput`
+* `sudo modprobe i2c-dev` and `sudo modprobe uinput`
     * You can have them be loaded automatically at boot. Consult [ArchWiki](https://wiki.archlinux.org/title/Kernel_module#Automatic_module_loading_with_systemd) for details
 * `sudo ~/.cargo/bin/asus-numpad --layout LAYOUT` where `LAYOUT` is one of `ux433fa`, `m433ia`, `ux581`, or `gx701`.
 
