@@ -219,13 +219,15 @@ impl Numpad {
                     debug!("Start tap");
                     self.state.finger_state = FingerState::Touching;
                     self.state.tap_started_at = ev.time;
-                    self.state.cur_key = self
-                        .layout
-                        .get_key(self.state.pos)
-                        .map_or(CurKey::None, CurKey::Keypad);
                     self.state.tap_start_pos = self.state.pos;
                     self.state.tapped_outside_numlock_bbox = false;
                     self.state.finger_dragged_too_much = false;
+                    if self.state.numlock {
+                        self.state.cur_key = self
+                            .layout
+                            .get_key(self.state.pos)
+                            .map_or(CurKey::None, CurKey::Keypad);
+                    }
                 }
                 if self.layout.in_numlock_bbox(self.state.pos) {
                     debug!("In numlock - start");
