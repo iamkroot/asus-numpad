@@ -4,10 +4,13 @@ Linux tool to allow using the numpad that is overlayed on various Asus Laptop to
 
 ## Features
 * Supports multiple layouts (`ux433fa`, `m433ia`, `ux581`, or `gx701`). See [asus-touchpad-numpad-driver](https://github.com/mohamed-badaoui/asus-touchpad-numpad-driver) for full list
-* Hold to toggle numlock
+* Hold to toggle numlock/cycle brightness
+* Drag to trigger calculator (similar to official driver)
+* Allows using the touchpad when numlock is active
 * Ignores touches in margins (outside the numpad)
 
 ## Installation
+### Prerequisites
 * Install `libevdev`
     * Debian / Ubuntu / Linux Mint / Pop!\_OS / Zorin OS: `sudo apt install libevdev2`
     * Arch Linux / Manjaro: `sudo pacman -S libevdev`
@@ -63,12 +66,12 @@ The following features are planned and implemented for the app:
 * [x] Set model via program argument
 * [x] Systemd service to enable autostart
 * [x] Run without `sudo`
+* [x] Start Calc only on drag instead of tap
 * [ ] Integration with system's NumLock state (toggle with external keyboards)
 * [ ] Don't panic on errors - exit gracefully
 * [ ] `strip` release binaries (goes from ~5MB to ~1.5MB)
 * [ ] Autodetect laptop model
 * [ ] Disable numpad if idle for more than a minute
-* [ ] Start Calc only on drag instead of tap
 
 ## Acknowledgements
 * This is a rewrite of [asus-touchpad-numpad-driver](https://github.com/mohamed-badaoui/asus-touchpad-numpad-driver)
