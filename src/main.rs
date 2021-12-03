@@ -17,7 +17,7 @@ use crate::util::ElapsedSince;
 use clap::{App, Arg};
 use evdev_rs::{
     enums::{EventCode, EV_ABS, EV_KEY, EV_MSC},
-    Device, GrabMode, InputEvent, ReadFlag, TimeVal,
+    Device, InputEvent, ReadFlag, TimeVal,
 };
 use log::{debug, trace};
 
@@ -40,6 +40,12 @@ pub struct Point {
     y: f32,
 }
 
+impl Point {
+    fn dist(&self, other: Self) -> f32 {
+        ((self.x - other.x).powi(2) + (self.y - other.y).powi(2)).sqrt()
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 struct TouchpadState {
     pos: Point,
@@ -47,6 +53,7 @@ struct TouchpadState {
     numlock: bool,
     cur_key: Option<EV_KEY>,
     tap_started_at: TimeVal,
+    tap_start_pos: Point,
     tapped_outside_numlock_bbox: bool,
     brightness: Brightness,
 }
@@ -69,6 +76,7 @@ impl Default for TouchpadState {
                 tv_sec: 0,
                 tv_usec: 0,
             },
+            tap_start_pos: Default::default(),
             tapped_outside_numlock_bbox: false,
             brightness: Default::default(),
         }
@@ -98,6 +106,16 @@ impl std::fmt::Debug for Numpad {
 }
 
 impl Numpad {
+    /// 250 milliseconds
+    const HOLD_DURATION: TimeVal = TimeVal {
+        tv_sec: 0,
+        tv_usec: 250_000,
+    };
+
+    /// Min. Euclidean distance that a finger needs to move for a tap
+    /// to be changed into a drag.  
+    const TAP_JITTER_DIST: f32 = 100.0;
+
     fn new(
         evdev: Device,
         keyboard_evdev: Device,
@@ -118,61 +136,57 @@ impl Numpad {
     fn toggle_numlock(&mut self) {
         if self.state.toggle_numlock() {
             self.touchpad_i2c.set_brightness(self.state.brightness);
-            self.evdev.grab(GrabMode::Grab).expect("GRAB");
         } else {
             self.touchpad_i2c.set_brightness(Brightness::Zero);
-            self.evdev.grab(GrabMode::Ungrab).expect("UNGRAB");
+        }
+    }
+
+    fn on_lift(&mut self) {
+        // end of tap
+        debug!("End tap");
+        self.state.finger_state = FingerState::Lifted;
+        if self.layout.in_calc_bbox(self.state.pos) {
+            debug!("In calc - end");
+            if self.state.numlock {
+                self.touchpad_i2c
+                    .set_brightness(self.state.brightness.cycle());
+            } else {
+                // Start calculator
+                self.dummy_kb.keypress(EV_KEY::KEY_CALC);
+                // TODO: Should only start calc when dragged
+            }
+        }
+        if let Some(key) = self.state.cur_key {
+            debug!("Keyup {:?}", key);
+
+            if self.layout.needs_multikey(key) {
+                self.dummy_kb.multi_keyup(&self.layout.multikeys(key));
+            } else {
+                self.dummy_kb.keyup(key);
+            }
+            self.state.cur_key = None;
         }
     }
 
     fn handle_touchpad_event(&mut self, ev: InputEvent) {
-        // 250 milliseconds
-        const HOLD_DURATION: TimeVal = TimeVal {
-            tv_sec: 0,
-            tv_usec: 250_000,
-        };
-
+        // TODO: Double-taps when numpad is active should not be propagated.
+        //       Need to grab/ungrab the device intelligently.
+        // TODO: Dragging after a hold does not cause pointer to move, even
+        //       if ungrabbed. Investigate this.
+        
         // no need to trace timestamp events - too noisy
         if !matches!(ev.event_code, EventCode::EV_MSC(EV_MSC::MSC_TIMESTAMP)) {
             trace!("TP{:?} {}", ev.event_code, ev.value);
         }
         match ev.event_code {
             EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_X) => {
-                // what happens when it goes outside bbox of cur_key while dragging?
-                // should we move to new key?
-                // TODO: Check official Windows driver behaviour
                 self.state.pos.x = ev.value as f32;
-                return;
             }
             EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_Y) => {
                 self.state.pos.y = ev.value as f32;
-                return;
             }
             EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER) if ev.value == 0 => {
-                // end of tap
-                debug!("End tap");
-                self.state.finger_state = FingerState::Lifted;
-                if self.layout.in_calc_bbox(self.state.pos) {
-                    debug!("In calc - end");
-                    if self.state.numlock {
-                        self.touchpad_i2c
-                            .set_brightness(self.state.brightness.cycle());
-                    } else {
-                        // Start calculator
-                        self.dummy_kb.keypress(EV_KEY::KEY_CALC);
-                        // TODO: Should only start calc when dragged
-                    }
-                }
-                if let Some(key) = self.state.cur_key {
-                    debug!("Keyup {:?}", key);
-
-                    if self.layout.needs_multikey(key) {
-                        self.dummy_kb.multi_keyup(&self.layout.multikeys(key));
-                    } else {
-                        self.dummy_kb.keyup(key);
-                    }
-                    self.state.cur_key = None;
-                }
+                self.on_lift();
             }
             EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER) if ev.value == 1 => {
                 if self.state.finger_state == FingerState::Lifted {
@@ -180,6 +194,7 @@ impl Numpad {
                     debug!("Start tap");
                     self.state.finger_state = FingerState::Touching;
                     self.state.tap_started_at = ev.time;
+                    self.state.tap_start_pos = self.state.pos;
                     self.state.tapped_outside_numlock_bbox = false;
                 }
                 if self.layout.in_numlock_bbox(self.state.pos) {
@@ -201,7 +216,7 @@ impl Numpad {
                     && !self.state.tapped_outside_numlock_bbox
                 {
                     if self.layout.in_numlock_bbox(self.state.pos) {
-                        if ev.time.elapsed_since(self.state.tap_started_at) >= HOLD_DURATION {
+                        if ev.time.elapsed_since(self.state.tap_started_at) >= Self::HOLD_DURATION {
                             debug!("Hold finish - toggle numlock");
                             self.toggle_numlock();
                             // If user doesn't lift the finger quickly, we don't want to keep
@@ -209,7 +224,8 @@ impl Numpad {
                             // Can't do finger_state = Lifted, since that would start another tap
                             // Can't do finger_state = Touching, since that would cause numpad
                             // keypresses (we don't check for margins in layout.get_key yet)
-                            self.state.tapped_outside_numlock_bbox = true;
+                            // self.state.tapped_outside_numlock_bbox = true;
+                            self.state.finger_state = FingerState::Touching;
                         }
                     } else {
                         self.state.tapped_outside_numlock_bbox = true;
@@ -218,8 +234,22 @@ impl Numpad {
             }
             _ => (),
         }
+
+        // if the finger drags too much, stop the tap
+        if self.state.numlock
+            && self.state.finger_state == FingerState::Tapping
+            && self.state.tap_start_pos.dist(self.state.pos) > Self::TAP_JITTER_DIST
+        {
+            debug!(
+                "Moved too much {}",
+                self.state.tap_start_pos.dist(self.state.pos)
+            );
+            self.on_lift();
+            return;
+        }
+
         if self.state.numlock && self.state.finger_state == FingerState::Touching {
-            self.state.cur_key = self.layout.get_key(self.state.pos);
+            self.state.cur_key = self.layout.get_key(self.state.tap_start_pos);
             if let Some(key) = self.state.cur_key {
                 self.state.finger_state = FingerState::Tapping;
                 debug!("Keydown {:?}", key);
