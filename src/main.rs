@@ -194,7 +194,7 @@ impl Numpad {
         //       Need to grab/ungrab the device intelligently.
         // TODO: Dragging after a hold does not cause pointer to move, even
         //       if ungrabbed. Investigate this.
-        
+
         // no need to trace timestamp events - too noisy
         if !matches!(ev.event_code, EventCode::EV_MSC(EV_MSC::MSC_TIMESTAMP)) {
             trace!("TP{:?} {}", ev.event_code, ev.value);
@@ -249,9 +249,6 @@ impl Numpad {
                             // If user doesn't lift the finger quickly, we don't want to keep
                             // toggling, so assume finger was moved.
                             // Can't do finger_state = Lifted, since that would start another tap
-                            // Can't do finger_state = Touching, since that would cause numpad
-                            // keypresses (we don't check for margins in layout.get_key yet)
-                            // self.state.tapped_outside_numlock_bbox = true;
                             self.state.finger_state = FingerState::Touching;
                         }
                     } else {
@@ -267,10 +264,7 @@ impl Numpad {
             && self.state.finger_state == FingerState::Tapping
             && self.state.tap_start_pos.dist(self.state.pos) > Self::TAP_JITTER_DIST
         {
-            debug!(
-                "Moved too much {}",
-                self.state.tap_start_pos.dist(self.state.pos)
-            );
+            debug!("Moved too much");
             self.on_lift();
             return;
         }
