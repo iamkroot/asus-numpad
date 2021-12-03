@@ -122,10 +122,10 @@ impl Numpad {
     }
 
     fn handle_touchpad_event(&mut self, ev: InputEvent) {
-        // 1 second
+        // 250 milliseconds
         const HOLD_DURATION: TimeVal = TimeVal {
-            tv_sec: 1,
-            tv_usec: 0,
+            tv_sec: 0,
+            tv_usec: 250_000,
         };
 
         // no need to trace timestamp events - too noisy
