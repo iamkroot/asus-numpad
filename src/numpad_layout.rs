@@ -2,6 +2,8 @@ use std::{fmt::Debug, hint::unreachable_unchecked};
 
 use evdev_rs::enums::EV_KEY;
 
+use crate::Point;
+
 #[derive(Debug, Default, Clone, Copy)]
 struct Margins {
     top: f32,
@@ -66,8 +68,8 @@ impl BBox {
         }
     }
 
-    fn contains(&self, posx: f32, posy: f32) -> bool {
-        (self.minx <= posx && posx <= self.maxx) && (self.miny <= posy && posy <= self.maxy)
+    fn contains(&self, pos: Point) -> bool {
+        (self.minx <= pos.x && pos.x <= self.maxx) && (self.miny <= pos.y && pos.y <= self.maxy)
     }
 }
 
@@ -116,9 +118,9 @@ impl NumpadLayout {
     }
 
     /// Get the key at (posx, posy), if it exists
-    pub fn get_key(&self, posx: f32, posy: f32) -> Option<EV_KEY> {
-        let x = self.numpad_bbox.xscaled(posx);
-        let y = self.numpad_bbox.yscaled(posy);
+    pub fn get_key(&self, pos: Point) -> Option<EV_KEY> {
+        let x = self.numpad_bbox.xscaled(pos.x);
+        let y = self.numpad_bbox.yscaled(pos.y);
         if !(0.0..=1.0).contains(&x) || !(0.0..=1.0).contains(&y) {
             // outside numpad bbox
             return None;
@@ -130,16 +132,16 @@ impl NumpadLayout {
         Some(*key)
     }
 
-    pub fn _in_margins(&self, posx: f32, posy: f32) -> bool {
-        !self.numpad_bbox.contains(posx, posy)
+    pub fn _in_margins(&self, pos: Point) -> bool {
+        !self.numpad_bbox.contains(pos)
     }
 
-    pub fn in_numlock_bbox(&self, posx: f32, posy: f32) -> bool {
-        self.numlock_bbox.contains(posx, posy)
+    pub fn in_numlock_bbox(&self, pos: Point) -> bool {
+        self.numlock_bbox.contains(pos)
     }
 
-    pub fn in_calc_bbox(&self, posx: f32, posy: f32) -> bool {
-        self.calc_bbox.contains(posx, posy)
+    pub fn in_calc_bbox(&self, pos: Point) -> bool {
+        self.calc_bbox.contains(pos)
     }
 
     pub fn ux433fa(bbox: BBox) -> Self {

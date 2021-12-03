@@ -34,10 +34,15 @@ impl Default for FingerState {
     }
 }
 
+#[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
+pub struct Point {
+    x: f32,
+    y: f32,
+}
+
 #[derive(Debug, Clone, Copy)]
 struct TouchpadState {
-    posx: f32,
-    posy: f32,
+    pos: Point,
     finger_state: FingerState,
     numlock: bool,
     cur_key: Option<EV_KEY>,
@@ -56,8 +61,7 @@ impl TouchpadState {
 impl Default for TouchpadState {
     fn default() -> Self {
         Self {
-            posx: 0.0,
-            posy: 0.0,
+            pos: Default::default(),
             finger_state: Default::default(),
             numlock: false,
             cur_key: None,
@@ -137,18 +141,18 @@ impl Numpad {
                 // what happens when it goes outside bbox of cur_key while dragging?
                 // should we move to new key?
                 // TODO: Check official Windows driver behaviour
-                self.state.posx = ev.value as f32;
+                self.state.pos.x = ev.value as f32;
                 return;
             }
             EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_Y) => {
-                self.state.posy = ev.value as f32;
+                self.state.pos.y = ev.value as f32;
                 return;
             }
             EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER) if ev.value == 0 => {
                 // end of tap
                 debug!("End tap");
                 self.state.finger_state = FingerState::Lifted;
-                if self.layout.in_calc_bbox(self.state.posx, self.state.posy) {
+                if self.layout.in_calc_bbox(self.state.pos) {
                     debug!("In calc - end");
                     if self.state.numlock {
                         self.touchpad_i2c
@@ -178,14 +182,11 @@ impl Numpad {
                     self.state.tap_started_at = ev.time;
                     self.state.tapped_outside_numlock_bbox = false;
                 }
-                if self
-                    .layout
-                    .in_numlock_bbox(self.state.posx, self.state.posy)
-                {
+                if self.layout.in_numlock_bbox(self.state.pos) {
                     debug!("In numlock - start");
                     self.state.finger_state = FingerState::Tapping;
                 } else {
-                    if self.layout.in_calc_bbox(self.state.posx, self.state.posy) {
+                    if self.layout.in_calc_bbox(self.state.pos) {
                         self.state.finger_state = FingerState::Tapping;
                         debug!("In calc - start");
                     }
@@ -199,10 +200,7 @@ impl Numpad {
                 if self.state.finger_state == FingerState::Tapping
                     && !self.state.tapped_outside_numlock_bbox
                 {
-                    if self
-                        .layout
-                        .in_numlock_bbox(self.state.posx, self.state.posy)
-                    {
+                    if self.layout.in_numlock_bbox(self.state.pos) {
                         if ev.time.elapsed_since(self.state.tap_started_at) >= HOLD_DURATION {
                             debug!("Hold finish - toggle numlock");
                             self.toggle_numlock();
@@ -221,7 +219,7 @@ impl Numpad {
             _ => (),
         }
         if self.state.numlock && self.state.finger_state == FingerState::Touching {
-            self.state.cur_key = self.layout.get_key(self.state.posx, self.state.posy);
+            self.state.cur_key = self.layout.get_key(self.state.pos);
             if let Some(key) = self.state.cur_key {
                 self.state.finger_state = FingerState::Tapping;
                 debug!("Keydown {:?}", key);
