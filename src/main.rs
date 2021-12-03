@@ -75,6 +75,7 @@ struct TouchpadState {
     tap_started_at: TimeVal,
     tap_start_pos: Point,
     tapped_outside_numlock_bbox: bool,
+    finger_dragged_too_much: bool,
     brightness: Brightness,
 }
 
@@ -98,6 +99,7 @@ impl Default for TouchpadState {
             },
             tap_start_pos: Default::default(),
             tapped_outside_numlock_bbox: false,
+            finger_dragged_too_much: false,
             brightness: Default::default(),
         }
     }
@@ -209,8 +211,10 @@ impl Numpad {
                 self.state.pos.y = ev.value as f32;
             }
             EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER) if ev.value == 0 => {
-                // TODO: Fix double call to on_lift when finger dragged too much
-                self.on_lift();
+                if !self.state.finger_dragged_too_much {
+                    // only call on_lift if we did not already call it as a result of finger drag
+                    self.on_lift();
+                }
             }
             EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER) if ev.value == 1 => {
                 if self.state.finger_state == FingerState::Lifted {
@@ -224,6 +228,7 @@ impl Numpad {
                         .map_or(CurKey::None, CurKey::Keypad);
                     self.state.tap_start_pos = self.state.pos;
                     self.state.tapped_outside_numlock_bbox = false;
+                    self.state.finger_dragged_too_much = false;
                 }
                 if self.layout.in_numlock_bbox(self.state.pos) {
                     debug!("In numlock - start");
@@ -268,6 +273,7 @@ impl Numpad {
             && self.state.tap_start_pos.dist(self.state.pos) > Self::TAP_JITTER_DIST
         {
             debug!("Moved too much");
+            self.state.finger_dragged_too_much = true;
             self.on_lift();
             return;
         }
