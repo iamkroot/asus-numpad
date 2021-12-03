@@ -46,12 +46,32 @@ impl Point {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum CurKey {
+    None,
+    Numlock,
+    Calc,
+    Keypad(EV_KEY),
+}
+
+impl CurKey {
+    fn reset(&mut self) {
+        *self = Self::None;
+    }
+}
+
+impl Default for CurKey {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 struct TouchpadState {
     pos: Point,
     finger_state: FingerState,
     numlock: bool,
-    cur_key: Option<EV_KEY>,
+    cur_key: CurKey,
     tap_started_at: TimeVal,
     tap_start_pos: Point,
     tapped_outside_numlock_bbox: bool,
@@ -71,7 +91,7 @@ impl Default for TouchpadState {
             pos: Default::default(),
             finger_state: Default::default(),
             numlock: false,
-            cur_key: None,
+            cur_key: Default::default(),
             tap_started_at: TimeVal {
                 tv_sec: 0,
                 tv_usec: 0,
@@ -145,6 +165,7 @@ impl Numpad {
         // end of tap
         debug!("End tap");
         self.state.finger_state = FingerState::Lifted;
+        // TODO: Windows driver needs hold to change brightness
         if self.layout.in_calc_bbox(self.state.pos) {
             debug!("In calc - end");
             if self.state.numlock {
@@ -156,7 +177,7 @@ impl Numpad {
                 // TODO: Should only start calc when dragged
             }
         }
-        if let Some(key) = self.state.cur_key {
+        if let CurKey::Keypad(key) = self.state.cur_key {
             debug!("Keyup {:?}", key);
 
             if self.layout.needs_multikey(key) {
@@ -164,7 +185,7 @@ impl Numpad {
             } else {
                 self.dummy_kb.keyup(key);
             }
-            self.state.cur_key = None;
+            self.state.cur_key.reset();
         }
     }
 
@@ -194,16 +215,22 @@ impl Numpad {
                     debug!("Start tap");
                     self.state.finger_state = FingerState::Touching;
                     self.state.tap_started_at = ev.time;
+                    self.state.cur_key = self
+                        .layout
+                        .get_key(self.state.pos)
+                        .map_or(CurKey::None, CurKey::Keypad);
                     self.state.tap_start_pos = self.state.pos;
                     self.state.tapped_outside_numlock_bbox = false;
                 }
                 if self.layout.in_numlock_bbox(self.state.pos) {
                     debug!("In numlock - start");
                     self.state.finger_state = FingerState::Tapping;
+                    self.state.cur_key = CurKey::Numlock;
                 } else {
                     if self.layout.in_calc_bbox(self.state.pos) {
-                        self.state.finger_state = FingerState::Tapping;
                         debug!("In calc - start");
+                        self.state.finger_state = FingerState::Tapping;
+                        self.state.cur_key = CurKey::Calc;
                     }
                     self.state.tapped_outside_numlock_bbox = true
                 }
@@ -249,8 +276,7 @@ impl Numpad {
         }
 
         if self.state.numlock && self.state.finger_state == FingerState::Touching {
-            self.state.cur_key = self.layout.get_key(self.state.tap_start_pos);
-            if let Some(key) = self.state.cur_key {
+            if let CurKey::Keypad(key) = self.state.cur_key {
                 self.state.finger_state = FingerState::Tapping;
                 debug!("Keydown {:?}", key);
                 if self.layout.needs_multikey(key) {
