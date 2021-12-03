@@ -166,18 +166,15 @@ impl Numpad {
     fn on_lift(&mut self) {
         // end of tap
         debug!("End tap");
-        // TODO: Windows driver needs hold to change brightness
-        if self.layout.in_calc_bbox(self.state.pos) {
-            debug!("In calc - end");
-            if self.state.numlock {
-                self.touchpad_i2c
-                    .set_brightness(self.state.brightness.cycle());
-            } else {
-                // Start calculator
-                self.dummy_kb.keypress(EV_KEY::KEY_CALC);
-                // TODO: Should only start calc when dragged
-            }
+        if !self.state.numlock
+            && self.state.cur_key == CurKey::Calc
+            && self.state.pos.dist(self.state.tap_start_pos) >= 300.0
+        {
+            // Start calculator
+            debug!("Dragged to start calc");
+            self.dummy_kb.keypress(EV_KEY::KEY_CALC);
         }
+
         if self.state.finger_state == FingerState::Tapping {
             if let CurKey::Keypad(key) = self.state.cur_key {
                 debug!("Keyup {:?}", key);
@@ -262,6 +259,15 @@ impl Numpad {
                     } else {
                         self.state.tapped_outside_numlock_bbox = true;
                     }
+                }
+                if self.state.numlock
+                    && self.state.cur_key == CurKey::Calc
+                    && ev.time.elapsed_since(self.state.tap_started_at) >= Self::HOLD_DURATION
+                {
+                    debug!("Hold finish - cycle brightness");
+                    self.touchpad_i2c
+                        .set_brightness(self.state.brightness.cycle());
+                    self.state.cur_key.reset();
                 }
             }
             _ => (),
