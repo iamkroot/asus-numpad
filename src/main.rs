@@ -164,7 +164,6 @@ impl Numpad {
     fn on_lift(&mut self) {
         // end of tap
         debug!("End tap");
-        self.state.finger_state = FingerState::Lifted;
         // TODO: Windows driver needs hold to change brightness
         if self.layout.in_calc_bbox(self.state.pos) {
             debug!("In calc - end");
@@ -177,16 +176,19 @@ impl Numpad {
                 // TODO: Should only start calc when dragged
             }
         }
-        if let CurKey::Keypad(key) = self.state.cur_key {
-            debug!("Keyup {:?}", key);
+        if self.state.finger_state == FingerState::Tapping {
+            if let CurKey::Keypad(key) = self.state.cur_key {
+                debug!("Keyup {:?}", key);
 
-            if self.layout.needs_multikey(key) {
-                self.dummy_kb.multi_keyup(&self.layout.multikeys(key));
-            } else {
-                self.dummy_kb.keyup(key);
+                if self.layout.needs_multikey(key) {
+                    self.dummy_kb.multi_keyup(&self.layout.multikeys(key));
+                } else {
+                    self.dummy_kb.keyup(key);
+                }
             }
-            self.state.cur_key.reset();
         }
+        self.state.cur_key.reset();
+        self.state.finger_state = FingerState::Lifted;
     }
 
     fn handle_touchpad_event(&mut self, ev: InputEvent) {
@@ -207,6 +209,7 @@ impl Numpad {
                 self.state.pos.y = ev.value as f32;
             }
             EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER) if ev.value == 0 => {
+                // TODO: Fix double call to on_lift when finger dragged too much
                 self.on_lift();
             }
             EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER) if ev.value == 1 => {
