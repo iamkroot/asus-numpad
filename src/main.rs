@@ -19,7 +19,7 @@ use evdev_rs::{
     enums::{EventCode, EV_ABS, EV_KEY, EV_MSC},
     Device, InputEvent, ReadFlag, TimeVal,
 };
-use log::{debug, trace};
+use log::{debug, trace, warn};
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 enum FingerState {
@@ -158,9 +158,25 @@ impl Numpad {
     fn toggle_numlock(&mut self) {
         if self.state.toggle_numlock() {
             self.touchpad_i2c.set_brightness(self.state.brightness);
+            // don't grab touchpad - allow moving pointer even if active
         } else {
             self.touchpad_i2c.set_brightness(Brightness::Zero);
+            // we might still be grabbing the touchpad. release it.
+            self.ungrab();
         }
+    }
+
+    fn grab(&mut self) {
+        debug!("Grabbing");
+        self.evdev
+            .grab(evdev_rs::GrabMode::Grab)
+            .unwrap_or_else(|err| warn!("Failed to grab {}", err));
+    }
+
+    fn ungrab(&mut self) {
+        self.evdev
+            .grab(evdev_rs::GrabMode::Ungrab)
+            .unwrap_or_else(|err| warn!("Failed to ungrab {}", err));
     }
 
     fn on_lift(&mut self) {
@@ -184,6 +200,8 @@ impl Numpad {
                 } else {
                     self.dummy_kb.keyup(key);
                 }
+                // if we ungrab here, it causes the pointer to jump
+                // so we only ungrab when finger is dragged
             }
         }
         self.state.cur_key.reset();
@@ -227,6 +245,9 @@ impl Numpad {
                             .layout
                             .get_key(self.state.pos)
                             .map_or(CurKey::None, CurKey::Keypad);
+                        if self.state.cur_key.is_some() {
+                            self.grab();
+                        }
                     }
                 }
                 if self.layout.in_numlock_bbox(self.state.pos) {
@@ -282,6 +303,7 @@ impl Numpad {
         {
             debug!("Moved too much");
             self.state.finger_dragged_too_much = true;
+            self.ungrab();
             self.on_lift();
             return;
         }
