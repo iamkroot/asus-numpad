@@ -6,6 +6,7 @@ mod numpad_layout;
 mod touchpad_i2c;
 mod util;
 
+use std::fmt::Display;
 use std::hint::unreachable_unchecked;
 use std::os::unix::io::AsRawFd;
 
@@ -40,6 +41,12 @@ pub struct Point {
     y: f32,
 }
 
+impl Display for Point {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("<{}, {}>", self.x, self.y))
+    }
+}
+
 impl Point {
     fn dist(&self, other: Self) -> f32 {
         ((self.x - other.x).powi(2) + (self.y - other.y).powi(2)).sqrt()
@@ -57,6 +64,10 @@ pub(crate) enum CurKey {
 impl CurKey {
     fn reset(&mut self) {
         *self = Self::None;
+    }
+
+    fn is_some(&self) -> bool {
+        self != &Self::None
     }
 }
 
@@ -267,6 +278,10 @@ impl Numpad {
             EventCode::EV_MSC(EV_MSC::MSC_TIMESTAMP) => {
                 // The toggle should happen automatically after HOLD_DURATION, even if user is
                 // still touching the numpad bbox.
+                if self.state.finger_state == FingerState::Touching {
+                    trace!("Touch {}", self.state.pos);
+                }
+
                 if self.state.finger_state == FingerState::Tapping
                     && !self.state.tapped_outside_numlock_bbox
                 {
