@@ -16,3 +16,4 @@ libc = "0.2.107"
 log = { version = "0.4.14", features = ["release_max_level_warn"] }
 env_logger = "0.9.0"
 clap = "2.34.0"
+anyhow = "1.0"

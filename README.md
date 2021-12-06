@@ -69,8 +69,8 @@ The following features are planned and implemented for the app:
 * [x] Systemd service to enable autostart
 * [x] Run without `sudo`
 * [x] Start Calc only on drag instead of tap
+* [x] Don't panic on errors - exit gracefully
 * [ ] Integration with system's NumLock state (toggle with external keyboards)
-* [ ] Don't panic on errors - exit gracefully
 * [ ] `strip` release binaries (goes from ~5MB to ~1.5MB)
 * [ ] Autodetect laptop model
 * [ ] Disable numpad if idle for more than a minute

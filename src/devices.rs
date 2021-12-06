@@ -1,3 +1,4 @@
+use anyhow::{anyhow, Context, Result};
 use evdev_rs::{
     enums::{EventCode, EV_ABS},
     Device, DeviceWrapper,
@@ -6,8 +7,10 @@ use std::{fs::OpenOptions, os::unix::prelude::OpenOptionsExt};
 
 use crate::numpad_layout::BBox;
 
-fn parse_id(line: &str, search_str: &str) -> Result<u32, String> {
-    let pos = line.find(search_str).ok_or("Can't find token")?;
+fn parse_id(line: &str, search_str: &str) -> Result<u32> {
+    let pos = line
+        .find(search_str)
+        .ok_or_else(|| anyhow!("Can't find token {} in {}", search_str, line))?;
     let start_idx = pos + search_str.len();
     let mut chars = line.chars();
     // we know chars is at least as long as start_idx
@@ -15,14 +18,14 @@ fn parse_id(line: &str, search_str: &str) -> Result<u32, String> {
     let end_idx = start_idx
         + chars
             .position(|c| !c.is_numeric())
-            .expect("Reached end of line");
+            .ok_or(anyhow!("Reached end of line"))?;
     let digits = line[start_idx..end_idx].parse();
-    digits.map_err(|_| "No ID".to_string())
+    digits.context("Could not parse u32 ID")
 }
 
 /// Parse `/proc/bus/input/devices` to find the keyboard and touchpad devices.
 /// Returns the evdev handles for keybard and touchpad, along with I2C ID of touchpad.
-pub(crate) fn read_proc_input() -> Result<(u32, u32, u32), String> {
+pub(crate) fn read_proc_input() -> Result<(u32, u32, u32)> {
     #[derive(Debug, PartialEq, Eq)]
     enum Detection {
         NotDetected,
@@ -36,7 +39,8 @@ pub(crate) fn read_proc_input() -> Result<(u32, u32, u32), String> {
     let mut touchpad_ev_id: Option<u32> = None;
     let mut keyboard_ev_id: Option<u32> = None;
 
-    let data = std::fs::read_to_string("/proc/bus/input/devices").map_err(|e| e.to_string())?;
+    let data = std::fs::read_to_string("/proc/bus/input/devices")
+        .context("Could not read devices file")?;
 
     for line in data.lines() {
         match touchpad_detection {
@@ -92,33 +96,33 @@ pub(crate) fn read_proc_input() -> Result<(u32, u32, u32), String> {
         }
     }
     Ok((
-        keyboard_ev_id.ok_or("Can't find keyboard")?,
-        touchpad_ev_id.ok_or("Can't find touchpad")?,
-        touchpad_i2c_id.ok_or("Can't find touchpad I2C ID")?,
+        keyboard_ev_id.ok_or(anyhow!("Can't find keyboard evdev"))?,
+        touchpad_ev_id.ok_or(anyhow!("Can't find touchpad evdev"))?,
+        touchpad_i2c_id.ok_or(anyhow!("Can't find touchpad I2C ID"))?,
     ))
 }
 
-pub(crate) fn open_input_evdev(evdev_id: u32) -> Device {
+pub(crate) fn open_input_evdev(evdev_id: u32) -> Result<Device> {
     let file = OpenOptions::new()
         .read(true)
         .write(true)
         .custom_flags(libc::O_NONBLOCK)
         .open(format!("/dev/input/event{}", evdev_id))
         .expect("Couldn't open device event handle");
-    Device::new_from_file(file).expect("Unable to open evdev device")
+    Device::new_from_file(file).context("Unable to open evdev device")
 }
 
-pub(crate) fn get_touchpad_bbox(touchpad_evdev: &Device) -> BBox {
+pub(crate) fn get_touchpad_bbox(touchpad_evdev: &Device) -> Result<BBox> {
     let absx = touchpad_evdev
         .abs_info(&EventCode::EV_ABS(EV_ABS::ABS_X))
-        .expect("MAX");
+        .ok_or(anyhow!("Could not get touchpad max x"))?;
     let absy = touchpad_evdev
         .abs_info(&EventCode::EV_ABS(EV_ABS::ABS_Y))
-        .expect("MAX");
-    BBox::new(
+        .ok_or(anyhow!("Could not get touchpad max y"))?;
+    Ok(BBox::new(
         absx.minimum as f32,
         absx.maximum as f32,
         absy.minimum as f32,
         absy.maximum as f32,
-    )
+    ))
 }

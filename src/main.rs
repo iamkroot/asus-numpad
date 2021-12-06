@@ -15,6 +15,7 @@ use crate::dummy_keyboard::{DummyKeyboard, KeyEvents};
 use crate::numpad_layout::{NumpadLayout, LAYOUT_NAMES};
 use crate::touchpad_i2c::{Brightness, TouchpadI2C};
 use crate::util::ElapsedSince;
+use anyhow::{Context, Result};
 use clap::{App, Arg};
 use evdev_rs::{
     enums::{EventCode, EV_ABS, EV_KEY, EV_MSC},
@@ -183,15 +184,16 @@ impl Numpad {
         }
     }
 
-    fn toggle_numlock(&mut self) {
+    fn toggle_numlock(&mut self) -> Result<()> {
         if self.state.toggle_numlock() {
-            self.touchpad_i2c.set_brightness(self.state.brightness);
+            self.touchpad_i2c.set_brightness(self.state.brightness)?;
             // don't grab touchpad - allow moving pointer even if active
         } else {
-            self.touchpad_i2c.set_brightness(Brightness::Zero);
+            self.touchpad_i2c.set_brightness(Brightness::Zero)?;
             // we might still be grabbing the touchpad. release it.
             self.ungrab();
         }
+        Ok(())
     }
 
     fn grab(&mut self) {
@@ -236,7 +238,7 @@ impl Numpad {
         self.state.finger_state = FingerState::Lifted;
     }
 
-    fn handle_touchpad_event(&mut self, ev: InputEvent) {
+    fn handle_touchpad_event(&mut self, ev: InputEvent) -> Result<()> {
         // TODO: Double-taps when numpad is active should not be propagated.
         //       Need to grab/ungrab the device intelligently.
         // TODO: Dragging after a hold does not cause pointer to move, even
@@ -305,7 +307,7 @@ impl Numpad {
                     if self.layout.in_numlock_bbox(self.state.pos) {
                         if ev.time.elapsed_since(self.state.tap_started_at) >= Self::HOLD_DURATION {
                             debug!("Hold finish - toggle numlock");
-                            self.toggle_numlock();
+                            self.toggle_numlock()?;
                             // If user doesn't lift the finger quickly, we don't want to keep
                             // toggling, so assume finger was moved.
                             // Can't do finger_state = Lifted, since that would start another tap
@@ -321,7 +323,7 @@ impl Numpad {
                 {
                     debug!("Hold finish - cycle brightness");
                     self.touchpad_i2c
-                        .set_brightness(self.state.brightness.cycle());
+                        .set_brightness(self.state.brightness.cycle())?;
                     self.state.cur_key.reset();
                 }
             }
@@ -337,7 +339,7 @@ impl Numpad {
             self.state.finger_dragged_too_much = true;
             self.ungrab();
             self.on_lift();
-            return;
+            return Ok(());
         }
 
         if self.state.numlock && self.state.finger_state == FingerState::TouchStart {
@@ -351,9 +353,10 @@ impl Numpad {
                 }
             }
         }
+        Ok(())
     }
 
-    fn process(&mut self) {
+    fn process(&mut self) -> Result<()> {
         let tp_fd = libc::pollfd {
             fd: self.evdev.file().as_raw_fd(),
             events: libc::POLLIN,
@@ -374,7 +377,7 @@ impl Numpad {
                     if fds[0].revents & libc::POLLIN != 0 {
                         // read until no more events
                         while let Ok((_, ev)) = self.evdev.next_event(ReadFlag::NORMAL) {
-                            self.handle_touchpad_event(ev);
+                            self.handle_touchpad_event(ev)?;
                         }
                     }
                     if fds[1].revents & libc::POLLIN != 0 {
@@ -391,7 +394,7 @@ impl Numpad {
     }
 }
 
-fn main() {
+fn main() -> Result<()> {
     env_logger::init();
     let matches = App::new("asus-numpad")
         .arg(
@@ -406,10 +409,10 @@ fn main() {
     let layout_name = matches.value_of("layout").expect("Expected layout");
 
     let (keyboard_ev_id, touchpad_ev_id, i2c_id) =
-        read_proc_input().expect("Couldn't get proc input devices");
-    let touchpad_dev = open_input_evdev(touchpad_ev_id);
-    let keyboard_dev = open_input_evdev(keyboard_ev_id);
-    let bbox = get_touchpad_bbox(&touchpad_dev);
+        read_proc_input().context("Couldn't get proc input devices")?;
+    let touchpad_dev = open_input_evdev(touchpad_ev_id)?;
+    let keyboard_dev = open_input_evdev(keyboard_ev_id)?;
+    let bbox = get_touchpad_bbox(&touchpad_dev)?;
     let layout = match layout_name {
         "ux433fa" => NumpadLayout::ux433fa(bbox),
         "m433ia" => NumpadLayout::m433ia(bbox),
@@ -417,8 +420,9 @@ fn main() {
         "gx701" => NumpadLayout::gx701(bbox),
         _ => unreachable!(),
     };
-    let kb = DummyKeyboard::new(&layout);
-    let touchpad_i2c = TouchpadI2C::new(i2c_id);
+    let kb = DummyKeyboard::new(&layout)?;
+    let touchpad_i2c = TouchpadI2C::new(i2c_id)?;
     let mut numpad = Numpad::new(touchpad_dev, keyboard_dev, touchpad_i2c, kb, layout);
-    numpad.process();
+    numpad.process()?;
+    Ok(())
 }

@@ -1,6 +1,5 @@
 use evdev_rs::TimeVal;
 
-
 pub trait ElapsedSince {
     /// Calculate time elapsed since `other`.
     ///

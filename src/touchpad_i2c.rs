@@ -1,7 +1,9 @@
 use std::fmt::Debug;
+use std::io::ErrorKind::{NotFound, PermissionDenied};
 
+use anyhow::{Context, Error, Result};
 use i2cdev::core::I2CDevice;
-use i2cdev::linux::LinuxI2CDevice;
+use i2cdev::linux::{LinuxI2CDevice, LinuxI2CError};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Brightness {
@@ -53,15 +55,32 @@ pub struct TouchpadI2C {
 }
 
 impl TouchpadI2C {
-    pub fn new(i2c_id: u32) -> Self {
+    pub fn new(i2c_id: u32) -> Result<Self> {
         const TOUCHPAD_ADDR: u16 = 0x15;
-        let dev =
-            unsafe { LinuxI2CDevice::force_new(format!("/dev/i2c-{}", i2c_id), TOUCHPAD_ADDR) };
-        let dev = dev.expect("Failed to open Touchpad I2C. Is i2c-dev kernel module loaded?");
-        Self { dev, i2c_id }
+        let dev = unsafe {
+            LinuxI2CDevice::force_new(format!("/dev/i2c-{}", i2c_id), TOUCHPAD_ADDR).map_err(
+                |err| {
+                    let mut context = format!("Unable to open Touchpad I2C at /dev/i2c-{}", i2c_id);
+                    let extra_context = match &err {
+                        LinuxI2CError::Io(e) => match e.kind() {
+                            NotFound => "Is i2c-dev kernel module loaded?",
+                            PermissionDenied => "Do you have the permission to read /dev/i2c-*?",
+                            _ => "",
+                        },
+                        LinuxI2CError::Nix(_) => "",
+                    };
+                    if !extra_context.is_empty() {
+                        context.push_str(". ");
+                        context.push_str(extra_context);
+                    };
+                    Error::new(err).context(context)
+                },
+            )?
+        };
+        Ok(Self { dev, i2c_id })
     }
 
-    pub fn set_brightness(&mut self, brightness: Brightness) {
+    pub fn set_brightness(&mut self, brightness: Brightness) -> Result<()> {
         let msg = [
             0x05,
             0x00,
@@ -77,7 +96,9 @@ impl TouchpadI2C {
             brightness as u8,
             0xad,
         ];
-        self.dev.write(&msg).expect("could not set brightness");
+        self.dev
+            .write(&msg)
+            .with_context(|| format!("Could not set touchpad brightness to {}", brightness))
     }
 }
 

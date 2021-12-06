@@ -1,3 +1,6 @@
+use std::io::ErrorKind::{NotFound, PermissionDenied};
+
+use anyhow::{Context, Error, Result};
 use evdev_rs::{
     enums::{EventCode, EV_KEY, EV_SYN},
     DeviceWrapper, InputEvent, TimeVal, UInputDevice, UninitDevice,
@@ -18,23 +21,35 @@ impl std::fmt::Debug for DummyKeyboard {
 }
 
 impl DummyKeyboard {
-    pub(crate) fn new(layout: &NumpadLayout) -> Self {
-        let dev = UninitDevice::new().expect("No libevdev");
+    pub(crate) fn new(layout: &NumpadLayout) -> Result<Self> {
+        let dev = UninitDevice::new().context("Unable to create uninit evdev device.")?;
         dev.set_name("asus_touchpad");
         let default_keys = [EV_KEY::KEY_LEFTSHIFT, EV_KEY::KEY_NUMLOCK, EV_KEY::KEY_CALC];
         for key in default_keys {
             dev.enable(&EventCode::EV_KEY(key))
-                .expect("Unable to enable key");
+                .with_context(|| format!("Unable to enable key {:?}", key))?;
         }
         for row in layout.keys().iter() {
             for key in row {
                 dev.enable(&EventCode::EV_KEY(*key))
-                    .expect("Unable to enable key");
+                    .with_context(|| format!("Unable to enable key {:?}", key))?;
             }
         }
-        Self {
-            udev: UInputDevice::create_from_device(&dev).expect("Unable to create UInput"),
-        }
+        let udev = UInputDevice::create_from_device(&dev).map_err(|err| {
+            let mut context = "Unable to create dummy UInput device".to_string();
+            let extra_context = match err.kind() {
+                NotFound => ("Is uinput kernel module loaded?"),
+                PermissionDenied => ("Do you have the permission to read /dev/uinput?"),
+                _ => "",
+            };
+            if !extra_context.is_empty() {
+                context.push_str(". ");
+                context.push_str(extra_context);
+            }
+            Error::new(err).context(context)
+        })?;
+
+        Ok(Self { udev })
     }
 }
 
