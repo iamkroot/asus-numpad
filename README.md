@@ -16,11 +16,13 @@ Linux tool to allow using the numpad that is overlayed on various Asus Laptop to
     * Arch Linux / Manjaro: `sudo pacman -S libevdev`
     * Fedora: `sudo dnf install libevdev`
 
-### From source
+### Compile from source
 * Install the Rust 2021 toolchain using [`Rustup`](https://rustup.rs)
 * `cargo install --git="https://github.com/iamkroot/asus-numpad"`
 
-### Prebuilt binary
+**OR**
+
+### Use prebuilt binary
 * Download from [`Releases`](https://github.com/iamkroot/asus-numpad/releases) page
 * Copy to some directory in PATH. (Further instructions assume it is in `~/.cargo/bin/`)
 
