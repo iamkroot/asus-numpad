@@ -1,6 +1,6 @@
 [package]
 name = "asus-numpad"
-version = "0.2.0"
+version = "0.2.1"
 authors = ["iamkroot <kroot.patel@gmail.com>"]
 edition = "2021"
 description = "Linux app to allow using the numpad that is overlayed on various Asus Laptop touchpads."
