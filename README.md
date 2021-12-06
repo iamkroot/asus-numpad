@@ -29,7 +29,7 @@ Linux tool to allow using the numpad that is overlayed on various Asus Laptop to
 ## Run
 * `sudo modprobe i2c-dev` and `sudo modprobe uinput`
     * You can have them be loaded automatically at boot. Consult [ArchWiki](https://wiki.archlinux.org/title/Kernel_module#Automatic_module_loading_with_systemd) for details
-* `sudo ~/.cargo/bin/asus-numpad --layout LAYOUT` where `LAYOUT` is one of `ux433fa`, `m433ia`, `ux581`, or `gx701`.
+* `sudo ~/.cargo/bin/asus-numpad -- --layout LAYOUT` where `LAYOUT` is one of `ux433fa`, `m433ia`, `ux581`, or `gx701`.
 
 ## Running without `sudo`
 1. You need to add your user to the `input` and `i2c` groups so that the program can access the touchpad events and control its brightness.
