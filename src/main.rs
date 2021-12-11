@@ -38,8 +38,8 @@ impl Default for FingerState {
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Point {
-    x: f32,
-    y: f32,
+    x: i32,
+    y: i32,
 }
 
 impl Display for Point {
@@ -49,8 +49,8 @@ impl Display for Point {
 }
 
 impl Point {
-    fn dist(&self, other: Self) -> f32 {
-        ((self.x - other.x).powi(2) + (self.y - other.y).powi(2)).sqrt()
+    fn dist_sq(&self, other: Self) -> i32 {
+        (self.x - other.x).pow(2) + (self.y - other.y).pow(2)
     }
 }
 
@@ -147,13 +147,13 @@ impl Numpad {
         tv_usec: 250_000,
     };
 
-    /// Min Euclidean distance that a finger needs to move for a tap
+    /// Min Euclidean distance (squared) that a finger needs to move for a tap
     /// to be changed into a drag.  
-    const TAP_JITTER_DIST: f32 = 100.0;
+    const TAP_JITTER_DIST: i32 = 10000;
 
-    /// Min Euclidean distance that a finger needs to be dragged to
+    /// Min Euclidean distance (squared) that a finger needs to be dragged to
     /// trigger the calculator key when numlock isn't active.
-    const CALC_DRAG_DIST: f32 = 300.0;
+    const CALC_DRAG_DIST: i32 = 90000;
 
     fn new(
         evdev: Device,
@@ -243,7 +243,7 @@ impl Numpad {
         debug!("End tap");
         if !self.state.numlock
             && self.state.cur_key == CurKey::Calc
-            && self.state.pos.dist(self.state.tap_start_pos) >= Self::CALC_DRAG_DIST
+            && self.state.pos.dist_sq(self.state.tap_start_pos) >= Self::CALC_DRAG_DIST
         {
             // Start calculator
             debug!("Dragged to start calc");
@@ -320,10 +320,10 @@ impl Numpad {
         }
         match ev.event_code {
             EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_X) => {
-                self.state.pos.x = ev.value as f32;
+                self.state.pos.x = ev.value;
             }
             EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_Y) => {
-                self.state.pos.y = ev.value as f32;
+                self.state.pos.y = ev.value;
             }
             EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER) if ev.value == 0 => {
                 if !self.state.finger_dragged_too_much {
@@ -373,7 +373,7 @@ impl Numpad {
         // if the finger drags too much, stop the tap
         if self.state.numlock
             && self.state.finger_state == FingerState::Touching
-            && self.state.tap_start_pos.dist(self.state.pos) > Self::TAP_JITTER_DIST
+            && self.state.tap_start_pos.dist_sq(self.state.pos) > Self::TAP_JITTER_DIST
         {
             debug!("Moved too much");
             self.state.finger_dragged_too_much = true;
@@ -470,13 +470,7 @@ fn main() -> Result<()> {
     let touchpad_dev = open_input_evdev(touchpad_ev_id)?;
     let keyboard_dev = open_input_evdev(keyboard_ev_id)?;
     let bbox = get_touchpad_bbox(&touchpad_dev)?;
-    let layout = match layout_name {
-        "ux433fa" => NumpadLayout::ux433fa(bbox),
-        "m433ia" => NumpadLayout::m433ia(bbox),
-        "ux581" => NumpadLayout::ux581(bbox),
-        "gx701" => NumpadLayout::gx701(bbox),
-        _ => unreachable!(),
-    };
+    let layout = NumpadLayout::from_model_name(layout_name, bbox)?;
     let kb = DummyKeyboard::new(&layout)?;
     let touchpad_i2c = TouchpadI2C::new(i2c_id)?;
     let mut numpad = Numpad::new(touchpad_dev, keyboard_dev, touchpad_i2c, kb, layout, config);

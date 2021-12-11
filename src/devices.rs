@@ -120,9 +120,9 @@ pub(crate) fn get_touchpad_bbox(touchpad_evdev: &Device) -> Result<BBox> {
         .abs_info(&EventCode::EV_ABS(EV_ABS::ABS_Y))
         .ok_or(anyhow!("Could not get touchpad max y"))?;
     Ok(BBox::new(
-        absx.minimum as f32,
-        absx.maximum as f32,
-        absy.minimum as f32,
-        absy.maximum as f32,
+        absx.minimum,
+        absx.maximum,
+        absy.minimum,
+        absy.maximum,
     ))
 }
