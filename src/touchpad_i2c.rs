@@ -15,7 +15,7 @@ pub enum Brightness {
 
 impl Default for Brightness {
     fn default() -> Self {
-        Brightness::Half
+        Brightness::Full
     }
 }
 
