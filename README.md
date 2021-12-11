@@ -3,11 +3,12 @@
 Linux tool to allow using the numpad that is overlayed on various Asus Laptop touchpads.
 
 ## Features
-* Supports multiple layouts (`ux433fa`, `m433ia`, `ux581`, or `gx701`). See [asus-touchpad-numpad-driver](https://github.com/mohamed-badaoui/asus-touchpad-numpad-driver) for full list
+This builds upon the work done in [asus-touchpad-numpad-driver](https://github.com/mohamed-badaoui/asus-touchpad-numpad-driver), and adds more goodies that bring it closer to parity with the official Windows driver-
 * Hold to toggle numlock/cycle brightness
-* Drag to trigger calculator (similar to official driver)
+* Drag to trigger calculator
 * Allows using the touchpad when numlock is active
 * Ignores touches in margins (outside the numpad)
+* Integration with system's NumLock state - toggle with external keyboards
 
 ## Installation
 ### Prerequisites
@@ -16,20 +17,21 @@ Linux tool to allow using the numpad that is overlayed on various Asus Laptop to
     * Arch Linux / Manjaro: `sudo pacman -S libevdev`
     * Fedora: `sudo dnf install libevdev`
 
-### Compile from source
-* Install the Rust 2021 toolchain using [`Rustup`](https://rustup.rs)
-* `cargo install --git="https://github.com/iamkroot/asus-numpad"`
-
-**OR**
-
 ### Use prebuilt binary
 * Download from [`Releases`](https://github.com/iamkroot/asus-numpad/releases) page
 * Copy to some directory in PATH. (Further instructions assume it is in `~/.cargo/bin/`)
+
+**OR**
+
+### Compile from source
+* Install the Rust 2021 toolchain using [`Rustup`](https://rustup.rs)
+* `cargo install --git="https://github.com/iamkroot/asus-numpad"`
 
 ## Run
 * `sudo modprobe i2c-dev` and `sudo modprobe uinput`
     * You can have them be loaded automatically at boot. Consult [ArchWiki](https://wiki.archlinux.org/title/Kernel_module#Automatic_module_loading_with_systemd) for details
 * `sudo ~/.cargo/bin/asus-numpad -- --layout LAYOUT` where `LAYOUT` is one of `ux433fa`, `m433ia`, `ux581`, or `gx701`.
+* It will automatically deactivate numlock when starting up. Pass `--disable_numlock_on_start=false` to keep it unchanged.
 
 ## Running without `sudo`
 1. You need to add your user to the `input` and `i2c` groups so that the program can access the touchpad events and control its brightness.
@@ -70,7 +72,7 @@ The following features are planned and implemented for the app:
 * [x] Run without `sudo`
 * [x] Start Calc only on drag instead of tap
 * [x] Don't panic on errors - exit gracefully
-* [ ] Integration with system's NumLock state (toggle with external keyboards)
+* [x] Integration with system's NumLock state (toggle with external keyboards)
 * [ ] `strip` release binaries (goes from ~5MB to ~1.5MB)
 * [ ] Autodetect laptop model
 * [ ] Disable numpad if idle for more than a minute
