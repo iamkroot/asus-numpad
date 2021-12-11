@@ -15,11 +15,11 @@ use crate::dummy_keyboard::{DummyKeyboard, KeyEvents};
 use crate::numpad_layout::{NumpadLayout, LAYOUT_NAMES};
 use crate::touchpad_i2c::{Brightness, TouchpadI2C};
 use crate::util::ElapsedSince;
-use anyhow::{Context, Result};
+use anyhow::{anyhow, Context, Result};
 use clap::{App, Arg};
 use evdev_rs::{
-    enums::{EventCode, EV_ABS, EV_KEY, EV_MSC},
-    Device, InputEvent, ReadFlag, TimeVal,
+    enums::{EventCode, EV_ABS, EV_KEY, EV_LED, EV_MSC},
+    Device, DeviceWrapper, InputEvent, ReadFlag, TimeVal,
 };
 use log::{debug, trace, warn};
 
@@ -137,6 +137,7 @@ struct Numpad {
     dummy_kb: DummyKeyboard,
     layout: NumpadLayout,
     state: TouchpadState,
+    config: Config,
 }
 
 impl std::fmt::Debug for Numpad {
@@ -173,6 +174,7 @@ impl Numpad {
         touchpad_i2c: TouchpadI2C,
         dummy_kb: DummyKeyboard,
         layout: NumpadLayout,
+        config: Config,
     ) -> Self {
         Self {
             evdev,
@@ -181,9 +183,11 @@ impl Numpad {
             dummy_kb,
             layout,
             state: TouchpadState::default(),
+            config,
         }
     }
 
+    /// Toggle numlock when user presses the numlock bbox on touchpad.
     fn toggle_numlock(&mut self) -> Result<()> {
         if self.state.toggle_numlock() {
             self.touchpad_i2c.set_brightness(self.state.brightness)?;
@@ -192,6 +196,44 @@ impl Numpad {
             self.touchpad_i2c.set_brightness(Brightness::Zero)?;
             // we might still be grabbing the touchpad. release it.
             self.ungrab();
+        }
+        // Tell the system that we want to toggle the numlock
+        self.dummy_kb.keypress(EV_KEY::KEY_NUMLOCK);
+        Ok(())
+    }
+
+    /// Handle numlock pressed *from an external keyboard*.
+    ///
+    /// This is to keep the touchpad state in sync with system's numlock.
+    fn handle_numlock_pressed(&mut self, val: i32) -> Result<()> {
+        if val == 0 {
+            debug!("setting off");
+            self.state.numlock = false;
+            // we might still be grabbing the touchpad. release it.
+            self.ungrab();
+            self.touchpad_i2c.set_brightness(Brightness::Zero)
+        } else {
+            debug!("setting on {}", self.state.brightness);
+            self.state.numlock = true;
+            self.touchpad_i2c.set_brightness(self.state.brightness)
+        }
+        // The numlock has already been toggled on the system- no need to press
+        // the Num_Lock evkey.
+    }
+
+    /// Query the initial state of numlock led from the system.
+    fn initialize_numlock(&mut self) -> Result<()> {
+        let init_numlock = self
+            .keyboard_evdev
+            .event_value(&EventCode::EV_LED(EV_LED::LED_NUML))
+            .ok_or(anyhow!("Failed to get initial numlock state"))?;
+
+        if init_numlock != 0 {
+            if self.config.disable_numlock_on_start {
+                self.dummy_kb.keypress(EV_KEY::KEY_NUMLOCK);
+            } else {
+                self.handle_numlock_pressed(init_numlock)?;
+            }
         }
         Ok(())
     }
@@ -357,6 +399,8 @@ impl Numpad {
     }
 
     fn process(&mut self) -> Result<()> {
+        self.initialize_numlock()?;
+
         let tp_fd = libc::pollfd {
             fd: self.evdev.file().as_raw_fd(),
             events: libc::POLLIN,
@@ -368,8 +412,7 @@ impl Numpad {
             revents: 0,
         };
         let mut fds = [tp_fd, kb_fd];
-        // TODO: Initialize with numlock state of system
-        // TODO: Remember the last used brightness and restore on start
+
         loop {
             match unsafe { libc::poll(fds.as_mut_ptr(), 2, -1) } {
                 0 => (), // timeout, TODO: disable numpad if idle (no touches) for 1 minute
@@ -382,7 +425,18 @@ impl Numpad {
                     }
                     if fds[1].revents & libc::POLLIN != 0 {
                         while let Ok((_, ev)) = self.keyboard_evdev.next_event(ReadFlag::NORMAL) {
-                            // TODO: Check for numlock
+                            // Note: We only listen to the LED event, and not the numlock event.
+                            // While most environments keep them in sync, it is technically possible
+                            // to change the led state without changing the numlock state.
+                            //
+                            // But there is no simple way for us to figure out the actual numlock
+                            // state. We would need to bring in Xlib (and equivalent for wayland)
+                            // and query it to get the numlock state.
+                            //
+                            // So, we only listen for LED changes, hoping that it reflects numlock state
+                            if let EventCode::EV_LED(EV_LED::LED_NUML) = ev.event_code {
+                                self.handle_numlock_pressed(ev.value)?;
+                            }
                             trace!("KB {}, {}", ev.event_code, ev.value);
                         }
                     }
@@ -392,6 +446,11 @@ impl Numpad {
             }
         }
     }
+}
+
+#[derive(Debug, Default, PartialEq, Eq, Hash)]
+struct Config {
+    pub disable_numlock_on_start: bool,
 }
 
 fn main() -> Result<()> {
@@ -405,8 +464,21 @@ fn main() -> Result<()> {
                 .required(true)
                 .possible_values(&LAYOUT_NAMES),
         )
+        .arg(
+            Arg::with_name("disable_numlock_on_start")
+                .long("disable_numlock_on_start")
+                .takes_value(true)
+                .default_value("true")
+                .possible_values(&["true", "false"]),
+        )
         .get_matches();
     let layout_name = matches.value_of("layout").expect("Expected layout");
+    let config = Config {
+        disable_numlock_on_start: matches
+            .value_of("disable_numlock_on_start")
+            .unwrap()
+            .parse()?,
+    };
 
     let (keyboard_ev_id, touchpad_ev_id, i2c_id) =
         read_proc_input().context("Couldn't get proc input devices")?;
@@ -422,7 +494,7 @@ fn main() -> Result<()> {
     };
     let kb = DummyKeyboard::new(&layout)?;
     let touchpad_i2c = TouchpadI2C::new(i2c_id)?;
-    let mut numpad = Numpad::new(touchpad_dev, keyboard_dev, touchpad_i2c, kb, layout);
+    let mut numpad = Numpad::new(touchpad_dev, keyboard_dev, touchpad_i2c, kb, layout, config);
     numpad.process()?;
     Ok(())
 }
