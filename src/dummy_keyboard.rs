@@ -23,7 +23,7 @@ impl std::fmt::Debug for DummyKeyboard {
 impl DummyKeyboard {
     pub(crate) fn new(layout: &NumpadLayout) -> Result<Self> {
         let dev = UninitDevice::new().context("Unable to create uninit evdev device.")?;
-        dev.set_name("asus_touchpad");
+        dev.set_name("asus_numpad");
         let default_keys = [EV_KEY::KEY_LEFTSHIFT, EV_KEY::KEY_NUMLOCK, EV_KEY::KEY_CALC];
         for key in default_keys {
             dev.enable(&EventCode::EV_KEY(key))
