@@ -14,7 +14,7 @@ use crate::devices::{get_touchpad_bbox, open_input_evdev, read_proc_input};
 use crate::dummy_keyboard::{DummyKeyboard, KeyEvents};
 use crate::numpad_layout::{NumpadLayout, LAYOUT_NAMES};
 use crate::touchpad_i2c::{Brightness, TouchpadI2C};
-use crate::util::ElapsedSince;
+use crate::util::{CustomDuration, ElapsedSince};
 use anyhow::{anyhow, Context, Result};
 use clap::{App, Arg};
 use evdev_rs::{
@@ -141,11 +141,7 @@ impl std::fmt::Debug for Numpad {
 }
 
 impl Numpad {
-    /// 250 milliseconds
-    const HOLD_DURATION: TimeVal = TimeVal {
-        tv_sec: 0,
-        tv_usec: 250_000,
-    };
+    const HOLD_DURATION: CustomDuration = CustomDuration::from_millis(250);
 
     /// Min Euclidean distance (squared) that a finger needs to move for a tap
     /// to be changed into a drag.  
