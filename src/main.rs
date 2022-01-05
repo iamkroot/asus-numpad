@@ -87,6 +87,7 @@ struct TouchpadState {
     tap_start_pos: Point,
     tapped_outside_numlock_bbox: bool,
     finger_dragged_too_much: bool,
+    dragged_finger_lifted_at: TimeVal,
     brightness: Brightness,
 }
 
@@ -112,6 +113,10 @@ impl Default for TouchpadState {
             tap_start_pos: Default::default(),
             tapped_outside_numlock_bbox: false,
             finger_dragged_too_much: false,
+            dragged_finger_lifted_at: TimeVal {
+                tv_sec: 0,
+                tv_usec: 0,
+            },
             brightness: Default::default(),
         }
     }
@@ -325,10 +330,17 @@ impl Numpad {
                 if !self.state.finger_dragged_too_much {
                     // only call on_lift if we did not already call it as a result of finger drag
                     self.on_lift();
+                } else {
+                    self.state.dragged_finger_lifted_at = ev.time;
                 }
             }
             EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER) if ev.value == 1 => {
-                self.on_tap(ev.time);
+                if !self.state.finger_dragged_too_much
+                    || ev.time.elapsed_since(self.state.dragged_finger_lifted_at)
+                        >= Self::HOLD_DURATION
+                {
+                    self.on_tap(ev.time);
+                }
             }
             EventCode::EV_MSC(EV_MSC::MSC_TIMESTAMP) => {
                 // The toggle should happen automatically after HOLD_DURATION, even if user is
