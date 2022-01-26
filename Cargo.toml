@@ -21,3 +21,7 @@ anyhow = "1.0"
 
 [profile.release]
 strip = true
+
+[profile.release_debug]
+inherits = "release"
+strip = false
