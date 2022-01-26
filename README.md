@@ -65,10 +65,21 @@ To enable autoloading at boot, a systemd service has been provided.
 
 ## Configuration
 The config file is stored in TOML format at `/etc/xdg/asus_numpad.toml`. It supports the following params:
-* `layout`: `string`: One of `UX433FA`, `M433IA`, `UX581`, or `GX701`.
-* `calc_start_command`: Array of keys from [EV_KEY](https://docs.rs/evdev-rs/latest/evdev_rs/enums/enum.EV_KEY.html), or `{cmd = "some_binary", args = ["arg1", "arg2]}`. Default `["KEY_CALC"]`. Defines what is to be done when calc key is dragged.
-* `calc_stop_command`: Array of keys from [EV_KEY](https://docs.rs/evdev-rs/latest/evdev_rs/enums/enum.EV_KEY.html), or `{cmd = "some_binary", args = ["arg1", "arg2]}`. Defines what is to be done when calc key is dragged the second time. If not specified, the `calc_start_command` will be re-ran. 
-* `disable_numlock_on_start`: `bool`, default `true`: Specifies whether we should deactivate the numlock when starting up.
+
+name | type | default | desc
+--- | --- | --- | ---
+`layout` | `string` | **Required** | One of `UX433FA`, `M433IA`, `UX581`, or `GX701`.
+`calc_start_command` | <ol type="a"><li> Array of [`EV_KEY`](https://docs.rs/evdev-rs/latest/evdev_rs/enums/enum.EV_KEY.html), or </li> <li> `{cmd = "some_binary", args = ["arg1", "arg2]}` </li> | `["KEY_CALC"]` | Defines what is to be done when calc key is dragged. <br> If variant `a` is used, the specified keys will be pressed. Variant `b` allows running an arbitrary command. 
+`calc_stop_command` | Same as `calc_start_command` | _Not specified_ | Defines what is to be done when calc key is dragged the second time. Useful for closing/killing a launched process. If not specified, the `calc_start_command` will be triggered. 
+`disable_numlock_on_start` | `bool` | `true` | Specifies whether we should deactivate the numlock when starting up.
+
+### Running commands as main user
+If you are running the daemon under a different user as discussed in [Running without `sudo`](#running-without-sudo), and you have specified custom commands in the configuration, then you'll find that the commands are actually running under the `asus_numpad` user. This may or may not be irksome based on what the command does (it won't have access to your user's files).
+
+You can use `sudo` for in order to run the commands as your main user account:
+1. `sudo visudo` to edit the `sudoers` file
+2. At the very end, add `asus_numpad ALL=(__YOUR_USERNAME__) NOPASSWD: ALL` (replace `__YOUR_USERNAME__` with your actual username!)
+3. In `asus_numpad.toml`, specify the commands as `{cmd = "sudo", args = ["-u", "__YOUR_USERNAME__", "some_binary", "arg1", "arg2"]`
 
 ## Todo
 
