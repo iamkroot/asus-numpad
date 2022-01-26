@@ -5,7 +5,7 @@ Linux tool to allow using the numpad that is overlayed on various Asus Laptop to
 ## Features
 This builds upon the work done in [asus-touchpad-numpad-driver](https://github.com/mohamed-badaoui/asus-touchpad-numpad-driver), and adds more goodies that bring it closer to parity with the official Windows driver-
 * Hold to toggle numlock/cycle brightness
-* Drag to trigger calculator
+* Drag to trigger calculator (on supported models)
 * Allows using the touchpad when numlock is active
 * Ignores touches in margins (outside the numpad)
 * Integration with system's NumLock state - toggle with external keyboards
@@ -78,6 +78,8 @@ The following features are planned and implemented for the app:
 * [x] Don't panic on errors - exit gracefully
 * [x] Integration with system's NumLock state (toggle with external keyboards)
 * [x] `strip` release binaries
+* [ ] Re-triggering Calc Key should _close_ the previously opened calc
+* [ ] Run custom command on triggering Calc Key
 * [ ] Autodetect laptop model
 * [ ] Disable numpad if idle for more than a minute
 
