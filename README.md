@@ -19,42 +19,46 @@ This builds upon the work done in [asus-touchpad-numpad-driver](https://github.c
 
 ### Use prebuilt binary
 * Download from [`Releases`](https://github.com/iamkroot/asus-numpad/releases) page
-* Copy to some directory in PATH. (Further instructions assume it is in `~/.cargo/bin/`)
+* Copy to some directory in PATH. (Further instructions assume it is in `/usr/bin/`)
 
 **OR**
 
 ### Compile from source
 * Install the Rust 2021 toolchain using [`Rustup`](https://rustup.rs)
-* `cargo install --git="https://github.com/iamkroot/asus-numpad"`
+* `sudo -E cargo install --root /usr --git="https://github.com/iamkroot/asus-numpad"`
 
 ## Run
 * `sudo modprobe i2c-dev` and `sudo modprobe uinput`
     * You can have them be loaded automatically at boot. Consult [ArchWiki](https://wiki.archlinux.org/title/Kernel_module#Automatic_module_loading_with_systemd) for details
-* `sudo ~/.cargo/bin/asus-numpad -- --layout LAYOUT` where `LAYOUT` is one of `ux433fa`, `m433ia`, `ux581`, or `gx701`.
+* `sudo asus-numpad --layout LAYOUT` where `LAYOUT` is one of `ux433fa`, `m433ia`, `ux581`, or `gx701`.
 * It will automatically deactivate numlock when starting up. Pass `--disable_numlock_on_start=false` to keep it unchanged.
 
 ## Running without `sudo`
-1. You need to add your user to the `input` and `i2c` groups so that the program can access the touchpad events and control its brightness.
-    * `sudo usermod -a -G input $(whoami)`
-    * `sudo usermod -a -G i2c $(whoami)`
-2. You'll also have to create a group `uinput`, add yourself to it, and add a `udev` rule to be able to create a virtual keyboard.
-    * `sudo groupadd uinput`
-    * `sudo usermod -a -G uinput $(whoami)`
-    * `echo 'KERNEL=="uinput", GROUP="uinput", MODE:="0660"' | sudo tee /etc/udev/rules.d/99-input.rules`
-3. After a reboot, check that the permissions are correct:
-    * `ls -l /dev/uinput` should show `crw-rw---- 1 root uinput ... /dev/uinput` (The `uinput` after `root` is important)
-    * Similarly, `ls -l /dev/i2c-*` should be owned by `i2c` group
-    * Finally, `groups $(whoami)` should include `input`, `i2c` and `uinput`.
+It is best to run this program through a separate Unix user that is allowed to access input devices.
+```bash
+# create a group `uinput` and add a `udev` rule for it
+# needed to be able to create a dummy virtual keyboard
+sudo groupadd uinput
+echo 'KERNEL=="uinput", GROUP="uinput", MODE:="0660"' | sudo tee /etc/udev/rules.d/99-input.rules
+
+# create a system user called "asus_numpad" which is a part of the required groups,
+# so that the program can access the touchpad events and control its brightness
+sudo useradd -Gi2c,input,uinput --no-create-home --system asus_numpad
+```
+
+After a reboot, check that the permissions are correct:
+* `ls -l /dev/uinput` should show `crw-rw---- 1 root uinput ... /dev/uinput` (The `uinput` after `root` is important)
+* Similarly, `ls -l /dev/i2c-*` should be owned by `i2c` group
+* Finally, `groups asus_numpad` should include `input`, `i2c` and `uinput`.
 
 ## Systemd Service
 To enable autoloading at boot, a systemd service has been provided.
-1. Copy [`tools/asus-numpad.service`](tools/asus-numpad.service) to a systemd directory.
-    * Without `sudo`: `$HOME/.config/systemd/user/`
-    * With `sudo`: `/etc/systemd/user/`
-2. Edit the file and change `$HOME` to `/home/username` (expand env variable), and specify `$LAYOUT` as detailed in [Run](#Run).
-3. Enable and start service:
-    * Without sudo: `systemctl --user enable --now asus-numpad.service`
-    * With sudo: `systemctl enable --now asus-numpad.service`
+* If you have added the new user from previous section, add `User=asus_numpad` the end of `[Service]` section in `tools/asus-numpad.service`.
+* Run the following to enable the service
+    ```bash
+    chmod +x tools/enable_systemd.sh
+    tools/enable_systemd.sh
+    ```
 
 ## Todo
 
