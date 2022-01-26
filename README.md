@@ -77,7 +77,7 @@ The following features are planned and implemented for the app:
 * [x] Start Calc only on drag instead of tap
 * [x] Don't panic on errors - exit gracefully
 * [x] Integration with system's NumLock state (toggle with external keyboards)
-* [ ] `strip` release binaries (goes from ~5MB to ~1.5MB)
+* [x] `strip` release binaries
 * [ ] Autodetect laptop model
 * [ ] Disable numpad if idle for more than a minute
 

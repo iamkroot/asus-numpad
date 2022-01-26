@@ -3,6 +3,7 @@ name = "asus-numpad"
 version = "0.3.0"
 authors = ["iamkroot <kroot.patel@gmail.com>"]
 edition = "2021"
+rust-version = "1.57"
 description = "Linux app to allow using the numpad that is overlayed on various Asus Laptop touchpads."
 readme = "README.md"
 repository = "https://github.com/iamkroot/asus-numpad"
@@ -17,3 +18,6 @@ log = { version = "0.4.14", features = ["release_max_level_warn"] }
 env_logger = "0.9.0"
 clap = "2.34.0"
 anyhow = "1.0"
+
+[profile.release]
+strip = true
