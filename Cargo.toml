@@ -1,6 +1,6 @@
 [package]
 name = "asus-numpad"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["iamkroot <kroot.patel@gmail.com>"]
 edition = "2021"
 rust-version = "1.57"
@@ -22,7 +22,3 @@ serde = {version = "1", features = ["derive"]}
 
 [profile.release]
 strip = true
-
-[profile.release_debug]
-inherits = "release"
-strip = false
