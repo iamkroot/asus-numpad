@@ -1,5 +1,6 @@
 #![feature(iter_advance_by)]
 
+mod config;
 mod devices;
 mod dummy_keyboard;
 mod numpad_layout;
@@ -9,14 +10,15 @@ mod util;
 use std::fmt::Display;
 use std::hint::unreachable_unchecked;
 use std::os::unix::io::AsRawFd;
+use std::process::Command;
 
+use crate::config::{Config, CustomCommand};
 use crate::devices::{get_touchpad_bbox, open_input_evdev, read_proc_input};
 use crate::dummy_keyboard::{DummyKeyboard, KeyEvents};
-use crate::numpad_layout::{NumpadLayout, LAYOUT_NAMES};
+use crate::numpad_layout::NumpadLayout;
 use crate::touchpad_i2c::{Brightness, TouchpadI2C};
 use crate::util::{CustomDuration, ElapsedSince};
 use anyhow::{anyhow, Context, Result};
-use clap::{App, Arg};
 use evdev_rs::{
     enums::{EventCode, EV_ABS, EV_KEY, EV_LED, EV_MSC},
     Device, DeviceWrapper, InputEvent, ReadFlag, TimeVal,
@@ -60,7 +62,7 @@ pub(crate) enum CurKey {
     None,
     Numlock,
     Calc,
-    /// A key on the actuall numpad bbox
+    /// A key on the actual numpad bbox
     Numpad(EV_KEY),
 }
 
@@ -77,7 +79,7 @@ impl Default for CurKey {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug)]
 struct TouchpadState {
     pos: Point,
     finger_state: FingerState,
@@ -89,6 +91,7 @@ struct TouchpadState {
     finger_dragged_too_much: bool,
     dragged_finger_lifted_at: TimeVal,
     brightness: Brightness,
+    calc_open: bool,
 }
 
 impl TouchpadState {
@@ -118,6 +121,7 @@ impl Default for TouchpadState {
                 tv_usec: 0,
             },
             brightness: Default::default(),
+            calc_open: false,
         }
     }
 }
@@ -217,7 +221,7 @@ impl Numpad {
             .ok_or(anyhow!("Failed to get initial numlock state"))?;
 
         if init_numlock != 0 {
-            if self.config.disable_numlock_on_start {
+            if self.config.disable_numlock_on_start() {
                 self.dummy_kb.keypress(EV_KEY::KEY_NUMLOCK);
             } else {
                 self.handle_numlock_pressed(init_numlock)?;
@@ -239,6 +243,56 @@ impl Numpad {
             .unwrap_or_else(|err| warn!("Failed to ungrab {}", err));
     }
 
+    fn start_calc(&mut self) {
+        debug!("Starting calc");
+        match self.config.calc_start_command() {
+            CustomCommand::Keys(keys) => self.dummy_kb.multi_keypress(keys.as_slice()),
+            CustomCommand::Command { cmd, args } => {
+                debug!("Running command {} with args {:?}", cmd, args);
+                let cmd = cmd.clone();
+                let args = args.clone();
+                // spawn a thread that waits for the proc to end
+                // ensures that all procs are reaped
+                std::thread::spawn(|| {
+                    match Command::new(cmd).args(args).spawn() {
+                        Ok(mut child) => {
+                            debug!("Started child proc: {}", child.id());
+                            if let Err(err) = child.wait() {
+                                warn!("Error while starting: {}", err);
+                            }
+                        }
+                        Err(err) => warn!("Error while starting: {}", err),
+                    };
+                });
+            }
+        }
+    }
+
+    fn stop_calc(&mut self) {
+        if let Some(stop_cmd) = self.config.calc_stop_command() {
+            debug!("Stopping calc");
+
+            match stop_cmd {
+                CustomCommand::Keys(keys) => self.dummy_kb.multi_keypress(keys.as_slice()),
+                CustomCommand::Command { cmd, args } => {
+                    debug!("Running command {} with args {:?}", cmd, args);
+                    match Command::new(cmd).args(args).spawn() {
+                        Ok(mut child) => {
+                            debug!("Waiting for proc to end");
+                            if let Err(err) = child.wait() {
+                                warn!("Error while stopping: {}", err);
+                            }
+                        }
+                        Err(err) => warn!("Error while stopping: {}", err),
+                    };
+                }
+            }
+        } else {
+            // if no stop command given, we re-run the start cmd
+            self.start_calc();
+        }
+    }
+
     fn on_lift(&mut self) {
         // end of tap
         debug!("End tap");
@@ -246,9 +300,12 @@ impl Numpad {
             && self.state.cur_key == CurKey::Calc
             && self.state.pos.dist_sq(self.state.tap_start_pos) >= Self::CALC_DRAG_DIST
         {
-            // Start calculator
-            debug!("Dragged to start calc");
-            self.dummy_kb.keypress(EV_KEY::KEY_CALC);
+            if !self.state.calc_open {
+                self.start_calc();
+            } else {
+                self.stop_calc();
+            }
+            self.state.calc_open = !self.state.calc_open;
         }
 
         if self.state.finger_state == FingerState::Touching {
@@ -441,44 +498,21 @@ impl Numpad {
     }
 }
 
-#[derive(Debug, Default, PartialEq, Eq, Hash)]
-struct Config {
-    pub disable_numlock_on_start: bool,
-}
-
 fn main() -> Result<()> {
     env_logger::init();
-    let matches = App::new("asus-numpad")
-        .arg(
-            Arg::with_name("layout")
-                .long("layout")
-                .short("l")
-                .takes_value(true)
-                .required(true)
-                .possible_values(&LAYOUT_NAMES),
-        )
-        .arg(
-            Arg::with_name("disable_numlock_on_start")
-                .long("disable_numlock_on_start")
-                .takes_value(true)
-                .default_value("true")
-                .possible_values(&["true", "false"]),
-        )
-        .get_matches();
-    let layout_name = matches.value_of("layout").expect("Expected layout");
-    let config = Config {
-        disable_numlock_on_start: matches
-            .value_of("disable_numlock_on_start")
-            .unwrap()
-            .parse()?,
-    };
+
+    // Follows XDG Base Dir Spec
+    const CONFIG_PATH: &str = "/etc/xdg/asus_numpad.toml";
+
+    let config: Config = toml::from_slice(&std::fs::read(CONFIG_PATH)?)?;
+    let layout_name = config.layout();
 
     let (keyboard_ev_id, touchpad_ev_id, i2c_id) =
         read_proc_input().context("Couldn't get proc input devices")?;
     let touchpad_dev = open_input_evdev(touchpad_ev_id)?;
     let keyboard_dev = open_input_evdev(keyboard_ev_id)?;
     let bbox = get_touchpad_bbox(&touchpad_dev)?;
-    let layout = NumpadLayout::from_model_name(layout_name, bbox)?;
+    let layout = NumpadLayout::from_supported_layout(layout_name, bbox)?;
     let kb = DummyKeyboard::new(&layout)?;
     let touchpad_i2c = TouchpadI2C::new(i2c_id)?;
     let mut numpad = Numpad::new(touchpad_dev, keyboard_dev, touchpad_i2c, kb, layout, config);

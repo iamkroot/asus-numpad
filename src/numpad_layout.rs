@@ -1,8 +1,9 @@
 use std::fmt::Debug;
 use std::hint::unreachable_unchecked;
 
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use evdev_rs::enums::EV_KEY;
+use serde::{Deserialize, Serialize};
 
 use crate::Point;
 
@@ -82,7 +83,13 @@ pub(crate) struct NumpadLayout {
     key_height: i32,
 }
 
-pub const LAYOUT_NAMES: [&str; 4] = ["ux433fa", "m433ia", "ux581", "gx701"];
+#[derive(Debug, PartialEq, Eq, Hash, Deserialize, Serialize)]
+pub(crate) enum SupportedLayout {
+    UX433FA,
+    M433IA,
+    UX581,
+    GX701,
+}
 
 impl NumpadLayout {
     /// Get a reference to the numpad layout's keys.
@@ -256,13 +263,13 @@ impl NumpadLayout {
         )
     }
 
-    pub fn from_model_name(name: &str, bbox: BBox) -> Result<Self> {
-        let layout = match name {
-            "ux433fa" => Self::ux433fa(bbox),
-            "m433ia" => Self::m433ia(bbox),
-            "ux581" => Self::ux581(bbox),
-            "gx701" => Self::gx701(bbox),
-            _ => return Err(anyhow!("Unknown model name {}", name)),
+    pub(crate) fn from_supported_layout(layout: &SupportedLayout, bbox: BBox) -> Result<Self> {
+        use SupportedLayout::*;
+        let layout = match layout {
+            UX433FA => Self::ux433fa(bbox),
+            M433IA => Self::m433ia(bbox),
+            UX581 => Self::ux581(bbox),
+            GX701 => Self::gx701(bbox),
         };
         Ok(layout)
     }
