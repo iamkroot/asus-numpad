@@ -30,8 +30,8 @@ This builds upon the work done in [asus-touchpad-numpad-driver](https://github.c
 ## Run
 * `sudo modprobe i2c-dev` and `sudo modprobe uinput`
     * You can have them be loaded automatically at boot. Consult [ArchWiki](https://wiki.archlinux.org/title/Kernel_module#Automatic_module_loading_with_systemd) for details
-* `sudo asus-numpad --layout LAYOUT` where `LAYOUT` is one of `ux433fa`, `m433ia`, `ux581`, or `gx701`.
-* It will automatically deactivate numlock when starting up. Pass `--disable_numlock_on_start=false` to keep it unchanged.
+* Create the config file at `/etc/xdg/asus_numpad.toml` and add `layout = "LAYOUT"`, where `LAYOUT` is one of `UX433FA`, `M433IA`, `UX581`, or `GX701`. See [Configuration](#Configuration) for more options.
+* `sudo asus-numpad`
 
 ## Running without `sudo`
 It is best to run this program through a separate Unix user that is allowed to access input devices.
@@ -54,11 +54,21 @@ After a reboot, check that the permissions are correct:
 ## Systemd Service
 To enable autoloading at boot, a systemd service has been provided.
 * If you have added the new user from previous section, add `User=asus_numpad` the end of `[Service]` section in `tools/asus-numpad.service`.
-* Run the following to enable the service
+* Run the following
     ```bash
-    chmod +x tools/enable_systemd.sh
-    tools/enable_systemd.sh
+    # copy the systemd service to a known location
+    sudo cp tools/asus-numpad.service /etc/systemd/system/
+
+    # enable and start the service
+    sudo systemctl enable --now asus-numpad.service
     ```
+
+## Configuration
+The config file is stored in TOML format at `/etc/xdg/asus_numpad.toml`. It supports the following params:
+* `layout`: `string`: One of `UX433FA`, `M433IA`, `UX581`, or `GX701`.
+* `calc_start_command`: Array of keys from [EV_KEY](https://docs.rs/evdev-rs/latest/evdev_rs/enums/enum.EV_KEY.html), or `{cmd = "some_binary", args = ["arg1", "arg2]}`. Default `["KEY_CALC"]`. Defines what is to be done when calc key is dragged.
+* `calc_stop_command`: Array of keys from [EV_KEY](https://docs.rs/evdev-rs/latest/evdev_rs/enums/enum.EV_KEY.html), or `{cmd = "some_binary", args = ["arg1", "arg2]}`. Defines what is to be done when calc key is dragged the second time. If not specified, the `calc_start_command` will be re-ran. 
+* `disable_numlock_on_start`: `bool`, default `true`: Specifies whether we should deactivate the numlock when starting up.
 
 ## Todo
 
@@ -78,8 +88,8 @@ The following features are planned and implemented for the app:
 * [x] Don't panic on errors - exit gracefully
 * [x] Integration with system's NumLock state (toggle with external keyboards)
 * [x] `strip` release binaries
-* [ ] Re-triggering Calc Key should _close_ the previously opened calc
-* [ ] Run custom command on triggering Calc Key
+* [x] Re-triggering Calc Key should _close_ the previously opened calc
+* [x] Run custom command on triggering Calc Key
 * [ ] Autodetect laptop model
 * [ ] Disable numpad if idle for more than a minute
 
