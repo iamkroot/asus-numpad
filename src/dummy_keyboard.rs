@@ -5,6 +5,7 @@ use evdev_rs::{
     enums::{EventCode, EV_KEY, EV_SYN},
     DeviceWrapper, InputEvent, TimeVal, UInputDevice, UninitDevice,
 };
+use log::trace;
 
 use crate::numpad_layout::NumpadLayout;
 
@@ -60,10 +61,12 @@ pub(crate) trait KeyEvents {
     fn multi_keyup(&self, keys: &[EV_KEY]);
 
     fn keypress(&self, key: EV_KEY) {
+        trace!("Pressing {:?}", key);
         self.keydown(key);
         self.keyup(key);
     }
     fn multi_keypress(&self, keys: &[EV_KEY]) {
+        trace!("Pressing {:?}", keys);
         self.multi_keydown(keys);
         self.multi_keyup(keys);
     }

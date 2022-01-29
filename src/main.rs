@@ -23,7 +23,7 @@ use evdev_rs::{
     enums::{EventCode, EV_ABS, EV_KEY, EV_LED, EV_MSC},
     Device, DeviceWrapper, InputEvent, ReadFlag, TimeVal,
 };
-use log::{debug, trace, warn};
+use log::{debug, trace, warn, info};
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 enum FingerState {
@@ -259,6 +259,8 @@ impl Numpad {
                             debug!("Started child proc: {}", child.id());
                             if let Err(err) = child.wait() {
                                 warn!("Error while starting: {}", err);
+                            } else {
+                                trace!("Process ended");
                             }
                         }
                         Err(err) => warn!("Error while starting: {}", err),
@@ -278,9 +280,11 @@ impl Numpad {
                     debug!("Running command {} with args {:?}", cmd, args);
                     match Command::new(cmd).args(args).spawn() {
                         Ok(mut child) => {
-                            debug!("Waiting for proc to end");
+                            debug!("Started child proc: {}", child.id());
                             if let Err(err) = child.wait() {
                                 warn!("Error while stopping: {}", err);
+                            } else {
+                                trace!("Process ended");
                             }
                         }
                         Err(err) => warn!("Error while stopping: {}", err),
@@ -369,12 +373,10 @@ impl Numpad {
     fn handle_touchpad_event(&mut self, ev: InputEvent) -> Result<()> {
         // TODO: Double-taps when numpad is active should not be propagated.
         //       Need to grab/ungrab the device intelligently.
-        // TODO: Dragging after a hold does not cause pointer to move, even
-        //       if ungrabbed. Investigate this.
 
         // no need to trace timestamp events - too noisy
         if !matches!(ev.event_code, EventCode::EV_MSC(EV_MSC::MSC_TIMESTAMP)) {
-            trace!("TP{:?} {}", ev.event_code, ev.value);
+            trace!("TP {:?} {}", ev.event_code, ev.value);
         }
         match ev.event_code {
             EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_X) => {
@@ -505,6 +507,7 @@ fn main() -> Result<()> {
     const CONFIG_PATH: &str = "/etc/xdg/asus_numpad.toml";
 
     let config: Config = toml::from_slice(&std::fs::read(CONFIG_PATH)?)?;
+    info!("Config: {:?}", config);
     let layout_name = config.layout();
 
     let (keyboard_ev_id, touchpad_ev_id, i2c_id) =
