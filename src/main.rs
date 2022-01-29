@@ -23,7 +23,7 @@ use evdev_rs::{
     enums::{EventCode, EV_ABS, EV_KEY, EV_LED, EV_MSC},
     Device, DeviceWrapper, InputEvent, ReadFlag, TimeVal,
 };
-use log::{debug, trace, warn, info};
+use log::{debug, info, trace, warn};
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 enum FingerState {
@@ -300,8 +300,7 @@ impl Numpad {
     fn on_lift(&mut self) {
         // end of tap
         debug!("End tap");
-        if !self.state.numlock
-            && self.state.cur_key == CurKey::Calc
+        if self.state.cur_key == CurKey::Calc
             && self.state.pos.dist_sq(self.state.tap_start_pos) >= Self::CALC_DRAG_DIST
         {
             if !self.state.calc_open {
@@ -426,6 +425,7 @@ impl Numpad {
                 }
                 if self.state.numlock
                     && self.state.cur_key == CurKey::Calc
+                    && self.layout.in_calc_bbox(self.state.pos)
                     && ev.time.elapsed_since(self.state.tap_started_at) >= Self::HOLD_DURATION
                 {
                     debug!("Hold finish - cycle brightness");
@@ -438,8 +438,10 @@ impl Numpad {
         }
 
         // if the finger drags too much, stop the tap
+        // TODO: Use the same logic for numlock bbox instead of `tapped_outside_numlock_bbox`
         if self.state.numlock
             && self.state.finger_state == FingerState::Touching
+            && self.state.cur_key != CurKey::Calc // we are fine if finger drags on calc box
             && self.state.tap_start_pos.dist_sq(self.state.pos) > Self::TAP_JITTER_DIST
         {
             debug!("Moved too much");
