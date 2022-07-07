@@ -30,7 +30,8 @@ This builds upon the work done in [asus-touchpad-numpad-driver](https://github.c
 ## Run
 * `sudo modprobe i2c-dev` and `sudo modprobe uinput`
     * You can have them be loaded automatically at boot. Consult [ArchWiki](https://wiki.archlinux.org/title/Kernel_module#Automatic_module_loading_with_systemd) for details
-* Create the config file at `/etc/xdg/asus_numpad.toml` and add `layout = "LAYOUT"`, where `LAYOUT` is one of `UX433FA`, `M433IA`, `UX581`, or `GX701`. See [Configuration](#Configuration) for more options.
+* Create the config file at `/etc/xdg/asus_numpad.toml` and add `layout = "LAYOUT"`, where `LAYOUT` is one of `UX433FA`, `M433IA`, `UX581`, `GX701` or `GX531`. See [Configuration](#Configuration) for more options.
+
 * `sudo asus-numpad`
 
 ## Running without `sudo`
@@ -68,7 +69,7 @@ The config file is stored in TOML format at `/etc/xdg/asus_numpad.toml`. It supp
 
 name | type | default | desc
 --- | --- | --- | ---
-`layout` | `string` | **Required** | One of `UX433FA`, `M433IA`, `UX581`, or `GX701`.
+`layout` | `string` | **Required** | One of `UX433FA`, `M433IA`, `UX581`, `GX701` or `GX531`.
 `calc_start_command` | <ol type="a"><li> Array of [`EV_KEY`](https://docs.rs/evdev-rs/latest/evdev_rs/enums/enum.EV_KEY.html), or </li> <li> `{cmd = "some_binary", args = ["arg1", "arg2]}` </li> | `["KEY_CALC"]` | Defines what is to be done when calc key is dragged. <br> If variant `a` is used, the specified keys will be pressed. Variant `b` allows running an arbitrary command. 
 `calc_stop_command` | Same as `calc_start_command` | _Not specified_ | Defines what is to be done when calc key is dragged the second time. Useful for closing/killing a launched process. If not specified, the `calc_start_command` will be triggered. 
 `disable_numlock_on_start` | `bool` | `true` | Specifies whether we should deactivate the numlock when starting up.
