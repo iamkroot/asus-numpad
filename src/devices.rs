@@ -103,13 +103,17 @@ pub(crate) fn read_proc_input() -> Result<(u32, u32, u32)> {
 }
 
 pub(crate) fn open_input_evdev(evdev_id: u32) -> Result<Device> {
+    let path = format!("/dev/input/event{}", evdev_id);
     let file = OpenOptions::new()
         .read(true)
         .write(true)
         .custom_flags(libc::O_NONBLOCK)
-        .open(format!("/dev/input/event{}", evdev_id))
-        .expect("Couldn't open device event handle");
-    Device::new_from_file(file).context("Unable to open evdev device")
+        .open(&path)
+        .with_context(|| path.clone())
+        .context("Couldn't open device event handle")?;
+    Device::new_from_file(file)
+        .with_context(|| path)
+        .context("Unable to open evdev device")
 }
 
 pub(crate) fn get_touchpad_bbox(touchpad_evdev: &Device) -> Result<BBox> {
