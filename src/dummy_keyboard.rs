@@ -39,8 +39,8 @@ impl DummyKeyboard {
         let udev = UInputDevice::create_from_device(&dev).map_err(|err| {
             let mut context = "Unable to create dummy UInput device".to_string();
             let extra_context = match err.kind() {
-                NotFound => ("Is uinput kernel module loaded?"),
-                PermissionDenied => ("Do you have the permission to read /dev/uinput?"),
+                NotFound => "Is uinput kernel module loaded?",
+                PermissionDenied => "Do you have the permission to read /dev/uinput?",
                 _ => "",
             };
             if !extra_context.is_empty() {
