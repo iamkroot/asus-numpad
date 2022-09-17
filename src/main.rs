@@ -16,10 +16,11 @@ use crate::dummy_keyboard::{DummyKeyboard, KeyEvents};
 use crate::numpad_layout::NumpadLayout;
 use crate::touchpad_i2c::{Brightness, TouchpadI2C};
 use crate::util::{CustomDuration, ElapsedSince};
+
 use anyhow::{Context, Result};
 use evdev_rs::{
     Device, DeviceWrapper, InputEvent, ReadFlag, TimeVal,
-    enums::{EV_ABS, EV_KEY, EV_LED, EV_MSC, EventCode},
+    enums::{EV_ABS, EV_KEY, EV_LED, EV_MSC, EV_SYN, EventCode},
 };
 use log::{debug, error, info, trace, warn};
 
@@ -85,6 +86,7 @@ struct TouchpadState {
     dragged_finger_lifted_at: TimeVal,
     brightness: Brightness,
     calc_open: bool,
+    grabbed: bool,
 }
 
 impl TouchpadState {
@@ -115,6 +117,7 @@ impl Default for TouchpadState {
             },
             brightness: Default::default(),
             calc_open: false,
+            grabbed: false,
         }
     }
 }
@@ -239,16 +242,25 @@ impl Numpad {
     }
 
     fn grab(&mut self) {
+        if self.state.grabbed {
+            return;
+        }
         debug!("Grabbing");
         self.evdev
             .grab(evdev_rs::GrabMode::Grab)
             .unwrap_or_else(|err| warn!("Failed to grab {}", err));
+        self.state.grabbed = true;
     }
 
     fn ungrab(&mut self) {
+        if !self.state.grabbed {
+            return;
+        }
+        debug!("Ungrabbing");
         self.evdev
             .grab(evdev_rs::GrabMode::Ungrab)
             .unwrap_or_else(|err| warn!("Failed to ungrab {}", err));
+        self.state.grabbed = false;
     }
 
     fn start_calc(&mut self) {
@@ -319,6 +331,17 @@ impl Numpad {
             self.state.calc_open = !self.state.calc_open;
         }
 
+        if self.state.finger_state == FingerState::TouchStart && self.state.numlock {
+            // trace!("Touch {}", self.state.pos);
+            if let CurKey::Numpad(key) = self.state.cur_key {
+                debug!("Keyp {:?}", key);
+                if self.layout.needs_multikey(key) {
+                    self.dummy_kb.multi_keypress(&self.layout.multikeys(key));
+                } else {
+                    self.dummy_kb.keypress(key);
+                }
+            }
+        }
         if self.state.finger_state == FingerState::Touching {
             if let CurKey::Numpad(key) = self.state.cur_key {
                 debug!("Keyup {:?}", key);
@@ -348,15 +371,15 @@ impl Numpad {
             if self.state.numlock {
                 self.state.cur_key = match self.layout.get_key(self.state.pos) {
                     Some(key) => {
-                        self.grab();
-                        self.state.finger_state = FingerState::Touching;
+                        // self.grab();
+                        // self.state.finger_state = FingerState::Touching;
 
-                        debug!("Keydown {:?}", key);
-                        if self.layout.needs_multikey(key) {
-                            self.dummy_kb.multi_keydown(&self.layout.multikeys(key));
-                        } else {
-                            self.dummy_kb.keydown(key);
-                        }
+                        // debug!("Keydown {:?}", key);
+                        // if self.layout.needs_multikey(key) {
+                        //     self.dummy_kb.multi_keydown(&self.layout.multikeys(key));
+                        // } else {
+                        //     self.dummy_kb.keydown(key);
+                        // }
                         CurKey::Numpad(key)
                     }
                     None => CurKey::None,
@@ -382,19 +405,31 @@ impl Numpad {
         //       Need to grab/ungrab the device intelligently.
 
         // no need to trace timestamp events - too noisy
-        if !matches!(ev.event_code, EventCode::EV_MSC(EV_MSC::MSC_TIMESTAMP)) {
+        if !matches!(
+            ev.event_code,
+            EventCode::EV_MSC(EV_MSC::MSC_TIMESTAMP) | EventCode::EV_SYN(EV_SYN::SYN_REPORT)
+        ) {
             trace!("TP {:?} {}", ev.event_code, ev.value);
         }
         match ev.event_code {
             EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_X) => {
+                if self.state.pos.x.abs_diff(ev.value) > 400 {
+                    warn!("Jump x!");
+                }
                 self.state.pos.x = ev.value;
             }
             EventCode::EV_ABS(EV_ABS::ABS_MT_POSITION_Y) => {
+                if self.state.pos.y.abs_diff(ev.value) > 400 {
+                    warn!("Jump y!");
+                }
                 self.state.pos.y = ev.value;
             }
             EventCode::EV_KEY(EV_KEY::BTN_TOOL_FINGER) if ev.value == 0 => {
                 if !self.state.finger_dragged_too_much {
                     // only call on_lift if we did not already call it as a result of finger drag
+                    // FIXME: This causes a jump. Need to use dummy mouse to generate REL events
+                    //  to offset that.
+                    self.ungrab();
                     self.on_lift();
                 } else {
                     self.state.dragged_finger_lifted_at = ev.time;
@@ -409,12 +444,38 @@ impl Numpad {
                 }
             }
             EventCode::EV_MSC(EV_MSC::MSC_TIMESTAMP) => {
-                // The toggle should happen automatically after HOLD_DURATION, even if user is
-                // still touching the numpad bbox.
                 if self.state.finger_state == FingerState::TouchStart {
-                    trace!("Touch {}", self.state.pos);
+                    // trace!("Touch {}", self.state.pos);
+                    if self.state.numlock
+                        && ev.time.elapsed_since(self.state.tap_started_at)
+                            > CustomDuration::from_millis(50)
+                    {
+                        if self.state.tap_start_pos.dist_sq(self.state.pos) < 2000 {
+                            if let CurKey::Numpad(key) = self.state.cur_key {
+                                trace!("k {:?}", key);
+                                self.grab();
+                                self.state.finger_state = FingerState::Touching;
+
+                                debug!("Keydown {:?}", key);
+                                if self.layout.needs_multikey(key) {
+                                    self.dummy_kb.multi_keydown(&self.layout.multikeys(key));
+                                } else {
+                                    self.dummy_kb.keydown(key);
+                                }
+                            }
+                        } else {
+                            debug!("Out! {:?}", self.state.cur_key);
+                            self.state.cur_key.reset();
+                            // self.ungrab();
+                            self.state.finger_dragged_too_much = true;
+                            self.ungrab();
+                            self.on_lift();
+                        }
+                    }
                 }
 
+                // The toggle should happen automatically after HOLD_DURATION, even if user is
+                // still touching the numpad bbox.
                 if self.state.finger_state == FingerState::Touching
                     && !self.state.tapped_outside_numlock_bbox
                 {
@@ -499,7 +560,7 @@ impl Numpad {
                             if let EventCode::EV_LED(EV_LED::LED_NUML) = ev.event_code {
                                 self.handle_numlock_pressed(ev.value)?;
                             }
-                            trace!("KB {}, {}", ev.event_code, ev.value);
+                            // trace!("KB {}, {}", ev.event_code, ev.value);
                         }
                     }
                 }
@@ -511,7 +572,8 @@ impl Numpad {
 }
 
 fn main() -> Result<()> {
-    env_logger::init();
+    env_logger::builder().format_timestamp_millis().init();
+    // env_logger::init();
 
     // Follows XDG Base Dir Spec
     const CONFIG_PATH: &str = "/etc/xdg/asus_numpad.toml";
