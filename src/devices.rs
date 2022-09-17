@@ -73,7 +73,7 @@ pub(crate) fn read_proc_input() -> Result<(u32, u32, u32)> {
         match keyboard_detection {
             Detection::NotDetected => {
                 if line.contains("Name=\"AT Translated Set 2 keyboard")
-                    || line.contains("Name=\"Asus Keyboard")
+                    || (line.contains("Name=\"ASUE") && line.contains("Keyboard"))
                 {
                     keyboard_detection = Detection::Parsing;
                     continue;
@@ -82,6 +82,7 @@ pub(crate) fn read_proc_input() -> Result<(u32, u32, u32)> {
             Detection::Parsing => {
                 if line.starts_with("H:") {
                     keyboard_ev_id = Some(parse_id(line, "event")?);
+                    // TODO: We should verify that the device actually supports KEY_NUMLOCK using evdev
                     keyboard_detection = Detection::Finished;
                     continue;
                 } else if line.is_empty() {
