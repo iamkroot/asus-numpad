@@ -18,12 +18,12 @@ use crate::dummy_keyboard::{DummyKeyboard, KeyEvents};
 use crate::numpad_layout::NumpadLayout;
 use crate::touchpad_i2c::{Brightness, TouchpadI2C};
 use crate::util::{CustomDuration, ElapsedSince};
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result};
 use evdev_rs::{
     enums::{EventCode, EV_ABS, EV_KEY, EV_LED, EV_MSC},
     Device, DeviceWrapper, InputEvent, ReadFlag, TimeVal,
 };
-use log::{debug, info, trace, warn};
+use log::{debug, error, info, trace, warn};
 
 #[derive(PartialEq, Debug, Clone, Copy)]
 enum FingerState {
@@ -217,15 +217,26 @@ impl Numpad {
     fn initialize_numlock(&mut self) -> Result<()> {
         let init_numlock = self
             .keyboard_evdev
-            .event_value(&EventCode::EV_LED(EV_LED::LED_NUML))
-            .ok_or(anyhow!("Failed to get initial numlock state"))?;
-
-        if init_numlock != 0 {
-            if self.config.disable_numlock_on_start() {
-                self.dummy_kb.keypress(EV_KEY::KEY_NUMLOCK);
-            } else {
-                self.handle_numlock_pressed(init_numlock)?;
+            .event_value(&EventCode::EV_LED(EV_LED::LED_NUML));
+        match init_numlock {
+            Some(init_numlock) => {
+                if init_numlock != 0 {
+                    if self.config.disable_numlock_on_start() {
+                        self.dummy_kb.keypress(EV_KEY::KEY_NUMLOCK);
+                    } else {
+                        self.handle_numlock_pressed(init_numlock)?;
+                    }
+                }
             }
+            None => error!(
+                "Failed to get initial numlock state. \
+                There might be something wrong with evdev keyboard detection. \
+                {}",
+                self.keyboard_evdev.name().map_or_else(
+                    || "Unknown device".to_owned(),
+                    |n| format!("Using device: {}", n)
+                )
+            ),
         }
         Ok(())
     }
