@@ -244,11 +244,11 @@ impl NumpadLayout {
         use EV_KEY::*;
         Self::create(
             vec![
-                vec![KEY_KPEQUAL, KEY_5, KEY_BACKSPACE, KEY_BACKSPACE],
-                vec![KEY_KP7, KEY_KP8, KEY_KP9, KEY_KPSLASH],
-                vec![KEY_KP4, KEY_KP5, KEY_KP6, KEY_KPASTERISK],
-                vec![KEY_KP1, KEY_KP2, KEY_KP3, KEY_KPMINUS],
-                vec![KEY_KP0, KEY_KPDOT, KEY_KPENTER, KEY_KPPLUS],
+                vec![KEY_CALC, KEY_KPSLASH, KEY_KPASTERISK, KEY_KPMINUS],
+                vec![KEY_KP7, KEY_KP8, KEY_KP9, KEY_KPPLUS],
+                vec![KEY_KP4, KEY_KP5, KEY_KP6, KEY_KPPLUS],
+                vec![KEY_KP1, KEY_KP2, KEY_KP3, KEY_KPENTER],
+                vec![KEY_KP0, KEY_KP0, KEY_KPDOT, KEY_KPENTER],
             ],
             bbox.apply_margins(Margins {
                 top: 0.025,
