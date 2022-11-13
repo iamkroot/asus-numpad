@@ -74,6 +74,7 @@ pub(crate) fn read_proc_input() -> Result<(u32, u32, u32)> {
             Detection::NotDetected => {
                 if line.contains("Name=\"AT Translated Set 2 keyboard")
                     || (line.contains("Name=\"ASUE") && line.contains("Keyboard"))
+                    || (line.contains("Name=\"Asus") && line.contains("Keyboard"))
                 {
                     keyboard_detection = Detection::Parsing;
                     continue;
