@@ -1,5 +1,3 @@
-#![feature(iter_advance_by)]
-
 mod config;
 mod devices;
 mod dummy_keyboard;
