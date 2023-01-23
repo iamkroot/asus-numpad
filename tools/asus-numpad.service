@@ -5,7 +5,7 @@ Description=Asus Numpad Driver
 ExecStart=asus-numpad
 TimeoutSec=5
 Restart=on-failure
-RestartSec=2
+RestartSec=3
 
 [Install]
 WantedBy=default.target
