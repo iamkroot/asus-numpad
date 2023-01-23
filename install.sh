@@ -21,7 +21,7 @@ fi
 if [ -f "$PWD/target/debug/asus-numpad" ];
 then
     echo "Copying program to /etc/bin/"
-    cp -f "$PWD/target/debug/asus-numpad" /etc/bin/asus-numpad
+    cp -f "$PWD/target/debug/asus-numpad" /etc/bin/
 else
     echo "Program does not exist..."
     exit 1
@@ -30,5 +30,5 @@ fi
 cp -f "$PWD/tools/asus-numpad.service" /etc/systemd/system/
 # Enabling and starting systemctl service
 systemctl enable asus-numpad.service
-systemctl restart asus-numpad.service
+systemctl start asus-numpad.service
 
