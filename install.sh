@@ -12,9 +12,12 @@ then
     echo "Config file already exists!"
     cat /etc/xdg/asus_numpad.toml
 else
+    supportedModels=("UX433FA" "M433IA" "UX581" "GX701" "GX531")
+    echo -e "Select touchpad model:\n0.${supportedModels[0]}\n1.${supportedModels[1]}\n2.${supportedModels[2]}\n3.${supportedModels[3]}\n4.${supportedModels[4]}\nChoose correct number:"
+    read -r selectedModelNumber
     echo "Creating config file"
     touch /etc/xdg/asus_numpad.toml
-    echo 'layout = "M433IA"' > /etc/xdg/asus_numpad.toml
+    echo "layout = \"${supportedModels[selectedModelNumber]}\"" > /etc/xdg/asus_numpad.toml
 fi
 
 # Copying program file
