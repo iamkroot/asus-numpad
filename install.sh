@@ -23,8 +23,10 @@ fi
 # Copying program file
 if [ -f "$PWD/target/debug/asus-numpad" ];
 then
-    echo "Copying program to /etc/bin/"
-    cp -f "$PWD/target/debug/asus-numpad" /etc/bin/
+    echo "Creating folder /opt/asus-numpad/"
+    mkdir /opt/asus-numpad
+    echo "Copying program to /opt/asus-numpad/"
+    cp -f "$PWD/target/debug/asus-numpad" /opt/asus-numpad/
 else
     echo "Program does not exist..."
     exit 1

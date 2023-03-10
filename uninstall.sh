@@ -27,7 +27,7 @@ then
 	exit 1
 fi
 
-rm -f /etc/bin/asus-numpad
+rm -f /opt/asus-numpad/asus-numpad
 if [[ $? != 0 ]]
 then
 	echo "asus-numpad driver cannot be deleted correctly..."
