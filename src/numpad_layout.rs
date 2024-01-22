@@ -87,6 +87,7 @@ pub(crate) struct NumpadLayout {
 pub(crate) enum SupportedLayout {
     UX433FA,
     M433IA,
+    UX325EA,
     UX581,
     GX701,
     GX531,
@@ -293,6 +294,7 @@ impl NumpadLayout {
         let layout = match layout {
             UX433FA => Self::ux433fa(bbox),
             M433IA => Self::m433ia(bbox),
+            UX325EA => Self::m433ia(bbox),
             UX581 => Self::ux581(bbox),
             GX701 => Self::gx701(bbox),
             GX531 => Self::gx531(bbox),

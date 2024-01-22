@@ -12,21 +12,17 @@ then
     echo "Config file already exists!"
     cat /etc/xdg/asus_numpad.toml
 else
-    supportedModels=("UX433FA" "M433IA" "UX581" "GX701" "GX531")
-    echo -e "Select touchpad model:\n0.${supportedModels[0]}\n1.${supportedModels[1]}\n2.${supportedModels[2]}\n3.${supportedModels[3]}\n4.${supportedModels[4]}\nChoose correct number:"
-    read -r selectedModelNumber
+    keyboardModel=$(cat /sys/class/dmi/id/board_name)
     echo "Creating config file"
     touch /etc/xdg/asus_numpad.toml
-    echo "layout = \"${supportedModels[selectedModelNumber]}\"" > /etc/xdg/asus_numpad.toml
+    echo "layout = \"${keyboardModel}\"" > /etc/xdg/asus_numpad.toml
 fi
 
 # Copying program file
 if [ -f "$PWD/target/debug/asus-numpad" ];
 then
-    echo "Creating folder /opt/asus-numpad/"
-    mkdir /opt/asus-numpad
-    echo "Copying program to /opt/asus-numpad/"
-    cp -f "$PWD/target/debug/asus-numpad" /opt/asus-numpad/
+    echo "Copying program to /usr/local/bin/"
+    cp -f "$PWD/target/debug/asus-numpad" /usr/local/bin/
 else
     echo "Program does not exist..."
     exit 1

@@ -3,7 +3,7 @@
 # Checking if the script is runned as root (via sudo or other)
 if [[ $(id -u) != 0 ]];
 then
-    echo "Please run the installation script as root (using sudo for example)"
+    echo "Please run the uninstallation script as root (using sudo for example)"
     exit 1
 fi
 systemctl stop asus-numpad.service
@@ -27,7 +27,7 @@ then
 	exit 1
 fi
 
-rm -f /opt/asus-numpad/asus-numpad
+rm -f /usr/local/bin/asus-numpad
 if [[ $? != 0 ]]
 then
 	echo "asus-numpad driver cannot be deleted correctly..."
