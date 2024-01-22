@@ -325,16 +325,16 @@ impl Numpad {
                 debug!("Keyup {:?}", key);
 
                 if self.layout.needs_multikey(key) {
-                    if self.state.pos.dist_sq(self.state.tap_start_pos) <= Self::TAP_JITTER_DIST {
+if self.state.pos.dist_sq(self.state.tap_start_pos) <= Self::TAP_JITTER_DIST {
                         self.dummy_kb.multi_keydown(&self.layout.multikeys(key));
-                        self.dummy_kb.multi_keyup(&self.layout.multikeys(key));
-                    }
+                    self.dummy_kb.multi_keyup(&self.layout.multikeys(key));
+}
                 } else {
-                    if self.state.pos.dist_sq(self.state.tap_start_pos) <= Self::TAP_JITTER_DIST {
+if self.state.pos.dist_sq(self.state.tap_start_pos) <= Self::TAP_JITTER_DIST {
                         self.dummy_kb.keydown(key);
-                        self.dummy_kb.keyup(key);
-                    }
+                    self.dummy_kb.keyup(key);
                 }
+}
                 // if we ungrab here, it causes the pointer to jump
                 // so we only ungrab when finger is dragged
             }
@@ -357,6 +357,13 @@ impl Numpad {
                     Some(key) => {
                         self.grab();
                         self.state.finger_state = FingerState::Touching;
+
+                        debug!("Keydown {:?}", key);
+                        if self.layout.needs_multikey(key) {
+                            self.dummy_kb.multi_keydown(&self.layout.multikeys(key));
+                        } else {
+                            self.dummy_kb.keydown(key);
+                        }
                         CurKey::Numpad(key)
                     }
                     None => CurKey::None,
