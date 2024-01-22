@@ -325,10 +325,16 @@ impl Numpad {
                 debug!("Keyup {:?}", key);
 
                 if self.layout.needs_multikey(key) {
+if self.state.pos.dist_sq(self.state.tap_start_pos) <= Self::TAP_JITTER_DIST {
+                        self.dummy_kb.multi_keydown(&self.layout.multikeys(key));
                     self.dummy_kb.multi_keyup(&self.layout.multikeys(key));
+}
                 } else {
+if self.state.pos.dist_sq(self.state.tap_start_pos) <= Self::TAP_JITTER_DIST {
+                        self.dummy_kb.keydown(key);
                     self.dummy_kb.keyup(key);
                 }
+}
                 // if we ungrab here, it causes the pointer to jump
                 // so we only ungrab when finger is dragged
             }
@@ -415,7 +421,6 @@ impl Numpad {
                 if self.state.finger_state == FingerState::TouchStart {
                     trace!("Touch {}", self.state.pos);
                 }
-
                 if self.state.finger_state == FingerState::Touching
                     && !self.state.tapped_outside_numlock_bbox
                 {
@@ -513,7 +518,6 @@ impl Numpad {
 
 fn main() -> Result<()> {
     env_logger::init();
-
     // Follows XDG Base Dir Spec
     const CONFIG_PATH: &str = "/etc/xdg/asus_numpad.toml";
 
