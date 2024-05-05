@@ -197,13 +197,13 @@ impl Numpad {
     /// This is to keep the touchpad state in sync with system's numlock.
     fn handle_numlock_pressed(&mut self, val: i32) -> Result<()> {
         if val == 0 {
-            debug!("setting off");
+            debug!("Setting numpad off");
             self.state.numlock = false;
             // we might still be grabbing the touchpad. release it.
             self.ungrab();
             self.touchpad_i2c.set_brightness(Brightness::Zero)
         } else {
-            debug!("setting on {}", self.state.brightness);
+            debug!("Setting numpad on {}", self.state.brightness);
             self.state.numlock = true;
             self.touchpad_i2c.set_brightness(self.state.brightness)
         }
@@ -526,6 +526,7 @@ fn main() -> Result<()> {
     let touchpad_dev = open_input_evdev(touchpad_ev_id)?;
     let keyboard_dev = open_input_evdev(keyboard_ev_id)?;
     let bbox = get_touchpad_bbox(&touchpad_dev)?;
+    info!("BBox: {:?}", bbox);
     let layout = NumpadLayout::from_supported_layout(layout_name, bbox)?;
     let kb = DummyKeyboard::new(&layout)?;
     let touchpad_i2c = TouchpadI2C::new(i2c_id)?;
