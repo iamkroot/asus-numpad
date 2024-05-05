@@ -299,16 +299,16 @@ impl NumpadLayout {
                 vec![KEY_KP0, KEY_KP0, KEY_KPDOT, KEY_KPPLUS, KEY_KPENTER],
             ],
             bbox.apply_margins(Margins {
-                top: 0.005,
-                bottom: 0.005,
-                left: 0.005,
-                right: 0.005,
+                top: 0.0625,
+                bottom: 0.0625,
+                left: 0.075,
+                right: 0.075,
             }),
             bbox.apply_margins(Margins {
-                top: 0.0,
-                bottom: 0.025,
-                left: 0.05,
-                right: 0.05,
+                top: 0.0625,
+                bottom: 0.7,
+                left: 0.73,
+                right: 0.075,
             }),
             // this bbox isn't present on this model.
             // set to values outside the actual touchpad bbox.
