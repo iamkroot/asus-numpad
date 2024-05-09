@@ -90,6 +90,7 @@ pub(crate) enum SupportedLayout {
     UX581,
     GX701,
     GX531,
+    UM5302TA,
 }
 
 impl NumpadLayout {
@@ -288,6 +289,36 @@ impl NumpadLayout {
         )
     }
 
+    pub fn um5302ta(bbox: BBox) -> Self {
+        use EV_KEY::*;
+        Self::create(
+            vec![
+                vec![KEY_KP7, KEY_KP8, KEY_KP9, KEY_KPSLASH, KEY_BACKSPACE],
+                vec![KEY_KP4, KEY_KP5, KEY_KP6, KEY_KPASTERISK, KEY_BACKSPACE],
+                vec![KEY_KP1, KEY_KP2, KEY_KP3, KEY_KPMINUS, KEY_5],
+                vec![KEY_KP0, KEY_KPDOT, KEY_KPENTER, KEY_KPPLUS, KEY_EQUAL],
+            ],
+            bbox.apply_margins(Margins {
+                top: 0.1,
+                bottom: 0.025,
+                left: 0.05,
+                right: 0.05,
+            }),
+            bbox.apply_margins(Margins {
+                top: 0.0,
+                bottom: 0.91,
+                left: 0.95,
+                right: 0.0,
+            }),
+            bbox.apply_margins(Margins {
+                top: 0.0,
+                bottom: 0.91,
+                left: 0.0,
+                right: 0.95,
+            }),
+        )
+    }
+
     pub(crate) fn from_supported_layout(layout: &SupportedLayout, bbox: BBox) -> Result<Self> {
         use SupportedLayout::*;
         let layout = match layout {
@@ -296,6 +327,7 @@ impl NumpadLayout {
             UX581 => Self::ux581(bbox),
             GX701 => Self::gx701(bbox),
             GX531 => Self::gx531(bbox),
+            UM5302TA => Self::um5302ta(bbox),
         };
         Ok(layout)
     }
