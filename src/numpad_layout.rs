@@ -293,7 +293,7 @@ impl NumpadLayout {
         use EV_KEY::*;
         Self::create(
             vec![
-                vec![KEY_KP7, KEY_KP8, KEY_KP9, KEY_BACKSLASH, KEY_NUMLOCK],
+                vec![KEY_KP7, KEY_KP8, KEY_KP9, KEY_KPSLASH, KEY_NUMLOCK],
                 vec![KEY_KP4, KEY_KP5, KEY_KP6, KEY_KPASTERISK, KEY_BACKSPACE],
                 vec![KEY_KP1, KEY_KP2, KEY_KP3, KEY_KPMINUS, KEY_KPENTER],
                 vec![KEY_KP0, KEY_KP0, KEY_KPDOT, KEY_KPPLUS, KEY_KPENTER],
