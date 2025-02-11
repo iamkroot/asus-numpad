@@ -14,9 +14,7 @@ fn parse_id(line: &str, search_str: &str) -> Result<u32> {
     let start_idx = pos + search_str.len();
     let mut chars = line.chars();
     // we know chars is at least as long as start_idx
-    for _ in 0..start_idx {
-        chars.next();
-    }
+    let _ = unsafe { chars.nth(start_idx).unwrap_unchecked() };
     let end_idx = start_idx
         + chars
             .position(|c| !c.is_numeric())
