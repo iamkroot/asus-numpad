@@ -2,8 +2,8 @@
 name = "asus-numpad"
 version = "0.4.1"
 authors = ["iamkroot <kroot.patel@gmail.com>"]
-edition = "2021"
-rust-version = "1.60"
+edition = "2024"
+rust-version = "1.85"
 description = "Linux app to allow using the numpad that is overlayed on various Asus Laptop touchpads."
 readme = "README.md"
 repository = "https://github.com/iamkroot/asus-numpad"
@@ -11,13 +11,13 @@ keywords = ["asus", "numpad", "touchpad", "driver"]
 categories = ["hardware-support", "os::linux-apis"]
 
 [dependencies]
-evdev-rs = { version = "0.5.0", features = ["serde"] }
-i2cdev = "0.5.1"
+evdev-rs = { version = "0.6.1", features = ["serde"] }
+i2cdev = "0.6.1"
 libc = "0.2.107"
 log = { version = "0.4.14", features = ["release_max_level_warn"] }
-env_logger = "0.9.0"
+env_logger = "0.11.7"
 anyhow = "1.0"
-toml = "0.5"
+toml = "0.8.20"
 serde = { version = "1", features = ["derive"] }
 
 [profile.release]

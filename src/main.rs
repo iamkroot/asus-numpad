@@ -18,22 +18,17 @@ use crate::touchpad_i2c::{Brightness, TouchpadI2C};
 use crate::util::{CustomDuration, ElapsedSince};
 use anyhow::{Context, Result};
 use evdev_rs::{
-    enums::{EventCode, EV_ABS, EV_KEY, EV_LED, EV_MSC},
     Device, DeviceWrapper, InputEvent, ReadFlag, TimeVal,
+    enums::{EV_ABS, EV_KEY, EV_LED, EV_MSC, EventCode},
 };
 use log::{debug, error, info, trace, warn};
 
-#[derive(PartialEq, Debug, Clone, Copy)]
+#[derive(PartialEq, Default, Debug, Clone, Copy)]
 enum FingerState {
+    #[default]
     Lifted,
     TouchStart,
     Touching,
-}
-
-impl Default for FingerState {
-    fn default() -> Self {
-        FingerState::Lifted
-    }
 }
 
 #[derive(Debug, Default, Clone, Copy, PartialEq, PartialOrd)]
@@ -516,8 +511,8 @@ fn main() -> Result<()> {
 
     // Follows XDG Base Dir Spec
     const CONFIG_PATH: &str = "/etc/xdg/asus_numpad.toml";
-
-    let config: Config = toml::from_slice(&std::fs::read(CONFIG_PATH)?)?;
+    let v = std::fs::read(CONFIG_PATH)?;
+    let config: Config = toml::from_str(&String::from_utf8(v)?)?;
     info!("Config: {:?}", config);
     let layout_name = config.layout();
 

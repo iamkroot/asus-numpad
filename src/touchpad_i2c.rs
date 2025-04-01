@@ -5,18 +5,13 @@ use anyhow::{Context, Error, Result};
 use i2cdev::core::I2CDevice;
 use i2cdev::linux::{LinuxI2CDevice, LinuxI2CError};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy)]
 pub enum Brightness {
     Zero = 0,
     Low = 31,
     Half = 24,
+    #[default]
     Full = 1,
-}
-
-impl Default for Brightness {
-    fn default() -> Self {
-        Brightness::Full
-    }
 }
 
 impl std::fmt::Display for Brightness {
@@ -67,7 +62,7 @@ impl TouchpadI2C {
                             PermissionDenied => "Do you have the permission to read /dev/i2c-*?",
                             _ => "",
                         },
-                        LinuxI2CError::Nix(_) => "",
+                        LinuxI2CError::Errno(_) => "",
                     };
                     if !extra_context.is_empty() {
                         context.push_str(". ");

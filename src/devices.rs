@@ -1,7 +1,7 @@
-use anyhow::{anyhow, Context, Result};
+use anyhow::{Context, Result, anyhow};
 use evdev_rs::{
-    enums::{EventCode, EV_ABS},
     Device, DeviceWrapper,
+    enums::{EV_ABS, EventCode},
 };
 use std::{fs::OpenOptions, os::unix::prelude::OpenOptionsExt};
 

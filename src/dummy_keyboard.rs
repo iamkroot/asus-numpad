@@ -2,8 +2,8 @@ use std::io::ErrorKind::{NotFound, PermissionDenied};
 
 use anyhow::{Context, Error, Result};
 use evdev_rs::{
-    enums::{EventCode, EV_KEY, EV_SYN},
     DeviceWrapper, InputEvent, TimeVal, UInputDevice, UninitDevice,
+    enums::{EV_KEY, EV_SYN, EventCode},
 };
 use log::trace;
 
@@ -27,12 +27,12 @@ impl DummyKeyboard {
         dev.set_name("asus_numpad");
         let default_keys = [EV_KEY::KEY_LEFTSHIFT, EV_KEY::KEY_NUMLOCK, EV_KEY::KEY_CALC];
         for key in default_keys {
-            dev.enable(&EventCode::EV_KEY(key))
+            dev.enable(EventCode::EV_KEY(key))
                 .with_context(|| format!("Unable to enable key {:?}", key))?;
         }
         for row in layout.keys().iter() {
             for key in row {
-                dev.enable(&EventCode::EV_KEY(*key))
+                dev.enable(EventCode::EV_KEY(*key))
                     .with_context(|| format!("Unable to enable key {:?}", key))?;
             }
         }
