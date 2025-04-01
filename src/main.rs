@@ -208,6 +208,10 @@ impl Numpad {
 
     /// Query the initial state of numlock led from the system.
     fn initialize_numlock(&mut self) -> Result<()> {
+        if self.config.disable_numpad() {
+            debug!("Skipping numlock init as numpad control is disabled");
+            return Ok(());
+        }
         let init_numlock = self
             .keyboard_evdev
             .event_value(&EventCode::EV_LED(EV_LED::LED_NUML));
@@ -359,7 +363,7 @@ impl Numpad {
                 };
             }
         }
-        if self.layout.in_numlock_bbox(self.state.pos) {
+        if self.layout.in_numlock_bbox(self.state.pos) && !self.config.disable_numpad() {
             debug!("In numlock - start");
             self.state.finger_state = FingerState::Touching;
             self.state.cur_key = CurKey::Numlock;

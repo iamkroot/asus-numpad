@@ -30,6 +30,9 @@ pub(crate) struct Config {
     calc_start_command: CustomCommand,
 
     calc_stop_command: Option<CustomCommand>,
+
+    #[serde(default)]
+    disable_numpad: bool,
 }
 
 fn default_numlock() -> bool {
@@ -55,5 +58,9 @@ impl Config {
     /// Get a reference to the config's calc stop command.
     pub(crate) fn calc_stop_command(&self) -> Option<&CustomCommand> {
         self.calc_stop_command.as_ref()
+    }
+
+    pub(crate) fn disable_numpad(&self) -> bool {
+        self.disable_numpad
     }
 }
