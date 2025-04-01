@@ -52,7 +52,10 @@ pub(crate) fn read_proc_input() -> Result<(u32, u32, u32)> {
     for line in data.lines() {
         match touchpad_detection {
             Detection::NotDetected => {
-                if (line.contains("Name=\"ASUE") || line.contains("Name=\"ELAN"))
+                if line.starts_with("N:")
+                    && (line.contains("Name=\"ASUE")
+                        || line.contains("Name=\"ELAN")
+                        || line.contains("Name=\"ASCP"))
                     && line.contains("Touchpad")
                 {
                     touchpad_detection = Detection::Parsing;
@@ -61,10 +64,12 @@ pub(crate) fn read_proc_input() -> Result<(u32, u32, u32)> {
             }
             Detection::Parsing => {
                 if line.starts_with("S:") {
-                    touchpad_i2c_id = Some(parse_id(line, "i2c-")?);
+                    touchpad_i2c_id =
+                        Some(parse_id(line, "i2c-").context("Could not parse u32 ID")?);
                     continue;
                 } else if line.starts_with("H:") {
-                    touchpad_ev_id = Some(parse_id(line, "event")?);
+                    touchpad_ev_id =
+                        Some(parse_id(line, "event").context("Could not parse u32 ID")?);
                     continue;
                 } else if line.is_empty() {
                     // reset since we reached end of device info
@@ -79,9 +84,10 @@ pub(crate) fn read_proc_input() -> Result<(u32, u32, u32)> {
 
         match keyboard_detection {
             Detection::NotDetected => {
-                if line.contains("Name=\"AT Translated Set 2 keyboard")
-                    || (line.contains("Name=\"ASUE") && line.contains("Keyboard"))
-                    || (line.contains("Name=\"Asus") && line.contains("Keyboard"))
+                if line.starts_with("N:")
+                    && (line.contains("Name=\"AT Translated Set 2 keyboard")
+                        || (line.contains("Name=\"ASUE") && line.contains("Keyboard"))
+                        || (line.contains("Name=\"Asus") && line.contains("Keyboard")))
                 {
                     keyboard_detection = Detection::Parsing;
                     continue;
@@ -89,7 +95,8 @@ pub(crate) fn read_proc_input() -> Result<(u32, u32, u32)> {
             }
             Detection::Parsing => {
                 if line.starts_with("H:") {
-                    keyboard_ev_id = Some(parse_id(line, "event")?);
+                    keyboard_ev_id =
+                        Some(parse_id(line, "event").context("Could not parse u32 ID")?);
                     // TODO: We should verify that the device actually supports KEY_NUMLOCK using evdev
                     keyboard_detection = Detection::Finished;
                     continue;
