@@ -12,15 +12,22 @@ fn parse_id(line: &str, search_str: &str) -> Result<u32> {
         .find(search_str)
         .ok_or_else(|| anyhow!("Can't find token {} in {}", search_str, line))?;
     let start_idx = pos + search_str.len();
-    let mut chars = line.chars();
-    // we know chars is at least as long as start_idx
-    let _ = unsafe { chars.nth(start_idx).unwrap_unchecked() };
+
+    if start_idx >= line.len() {
+        return Err(anyhow!("Search string is at the end of the line"));
+    }
+
     let end_idx = start_idx
-        + chars
+        + line[start_idx..]
+            .chars()
             .position(|c| !c.is_numeric())
-            .ok_or(anyhow!("Reached end of line"))?;
-    let digits = line[start_idx..end_idx].parse();
-    digits.context("Could not parse u32 ID")
+            .unwrap_or(line.len() - start_idx);
+
+    if start_idx == end_idx {
+        return Err(anyhow!("No numeric characters found"));
+    }
+
+    Ok(line[start_idx..end_idx].parse()?)
 }
 
 /// Parse `/proc/bus/input/devices` to find the keyboard and touchpad devices.
