@@ -51,10 +51,13 @@ pub(crate) fn read_proc_input() -> Result<(u32, u32, u32)> {
 
     for line in data.lines() {
         match touchpad_detection {
+            // FIXME: Should give priority to ASUE,ASUP etc. before ELAN
+            // In general, need to parse the entire thing, and use proper filtering
             Detection::NotDetected => {
                 if line.starts_with("N:")
                     && (line.contains("Name=\"ASUE")
                         || line.contains("Name=\"ELAN")
+                        || line.contains("Name=\"ASUP")
                         || line.contains("Name=\"ASCP"))
                     && line.contains("Touchpad")
                 {
@@ -86,8 +89,8 @@ pub(crate) fn read_proc_input() -> Result<(u32, u32, u32)> {
             Detection::NotDetected => {
                 if line.starts_with("N:")
                     && (line.contains("Name=\"AT Translated Set 2 keyboard")
-                        || (line.contains("Name=\"ASUE") && line.contains("Keyboard"))
-                        || (line.contains("Name=\"Asus") && line.contains("Keyboard")))
+                        || ((line.contains("Name=\"ASUE") || line.contains("Name=\"Asus"))
+                            && line.contains("Keyboard")))
                 {
                     keyboard_detection = Detection::Parsing;
                     continue;
