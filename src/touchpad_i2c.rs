@@ -99,6 +99,6 @@ impl TouchpadI2C {
 
 impl Debug for TouchpadI2C {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str(&format!("TouchpadI2C: /dev/i2c-{}", self.i2c_id))
+        write!(f, "TouchpadI2C: /dev/i2c-{}", self.i2c_id)
     }
 }

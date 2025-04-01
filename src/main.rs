@@ -39,7 +39,7 @@ pub struct Point {
 
 impl Display for Point {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("<{}, {}>", self.x, self.y))
+        write!(f, "<{}, {}>", self.x, self.y)
     }
 }
 
