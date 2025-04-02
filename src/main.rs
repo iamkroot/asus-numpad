@@ -417,6 +417,7 @@ impl Numpad {
 
                 if self.state.finger_state == FingerState::Touching
                     && !self.state.tapped_outside_numlock_bbox
+                    && !self.config.disable_numpad()
                 {
                     if self.layout.in_numlock_bbox(self.state.pos) {
                         if ev.time.elapsed_since(self.state.tap_started_at) >= Self::HOLD_DURATION {
@@ -470,13 +471,17 @@ impl Numpad {
         };
         let kb_fd = libc::pollfd {
             fd: self.keyboard_evdev.file().as_raw_fd(),
-            events: libc::POLLIN,
+            events: if self.config.disable_numpad() {
+                0
+            } else {
+                libc::POLLIN
+            },
             revents: 0,
         };
         let mut fds = [tp_fd, kb_fd];
 
         loop {
-            match unsafe { libc::poll(fds.as_mut_ptr(), 2, -1) } {
+            match unsafe { libc::poll(fds.as_mut_ptr(), fds.len() as _, -1) } {
                 0 => (), // timeout, TODO: disable numpad if idle (no touches) for 1 minute
                 1 | 2 => {
                     if fds[0].revents & libc::POLLIN != 0 {
